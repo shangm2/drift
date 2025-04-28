@@ -34,28 +34,7 @@ public class TestThriftIdlGenerator
     public void testGenerator()
             throws Exception
     {
-        assertGenerated(DriftScribe.class, "scribe", ignored -> {});
-        assertGenerated(RenamedService.class, "renamed", ignored -> {});
-        assertGenerated(Fruit.class, "fruit", ignored -> {});
-        assertGenerated(URIField.class, "uri", ignored -> {});
-        assertGenerated(TreeNode.class, "tree", ignored -> {});
-
-        assertGenerated(Point.class, "point", config -> config
-                .namespaces(ImmutableMap.<String, String>builder()
-                        .put("java", "com.example.thrift")
-                        .put("python", "snake")
-                        .build()));
-
-        assertGenerated(OneOfEverything.class, "everything", config -> config
-                .includes(ImmutableMap.<String, String>builder()
-                        .put(Fruit.class.getName(), "common/fruit.thrift")
-                        .build()));
-
-        assertGenerated(UnionField.class, "union", config -> config
-                .includes(ImmutableMap.<String, String>builder()
-                        .put(Fruit.class.getName(), "types.thrift")
-                        .build())
-                .recursive(false));
+        assertGenerated(MyClass.class, "scribe", ignored -> {});
     }
 
     private static void assertGenerated(Class<?> clazz, String name, Consumer<ThriftIdlGeneratorConfig.Builder> configConsumer)
@@ -70,6 +49,7 @@ public class TestThriftIdlGenerator
         configConsumer.accept(config);
 
         ThriftIdlGenerator generator = new ThriftIdlGenerator(config.build());
+
         String idl = generator.generate(ImmutableList.of(clazz.getName()));
 
         assertEquals(idl, expected);

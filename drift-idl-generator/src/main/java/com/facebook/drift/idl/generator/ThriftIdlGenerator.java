@@ -16,12 +16,15 @@
 package com.facebook.drift.idl.generator;
 
 import com.facebook.drift.annotations.ThriftService;
+import com.facebook.drift.codec.ThriftCodec;
 import com.facebook.drift.codec.ThriftCodecManager;
 import com.facebook.drift.codec.ThriftProtocolType;
+import com.facebook.drift.codec.internal.builtin.OptionalThriftCodec;
 import com.facebook.drift.codec.metadata.FieldKind;
 import com.facebook.drift.codec.metadata.MetadataErrorException;
 import com.facebook.drift.codec.metadata.MetadataErrors.Monitor;
 import com.facebook.drift.codec.metadata.MetadataWarningException;
+import com.facebook.drift.codec.metadata.ReflectionHelper;
 import com.facebook.drift.codec.metadata.ThriftCatalog;
 import com.facebook.drift.codec.metadata.ThriftFieldMetadata;
 import com.facebook.drift.codec.metadata.ThriftMethodMetadata;
@@ -29,12 +32,19 @@ import com.facebook.drift.codec.metadata.ThriftServiceMetadata;
 import com.facebook.drift.codec.metadata.ThriftStructMetadata;
 import com.facebook.drift.codec.metadata.ThriftType;
 import com.facebook.drift.codec.metadata.ThriftTypeReference;
+import com.facebook.drift.codec.utils.DataSizeToBytesThriftCodec;
+import com.facebook.drift.codec.utils.DurationToMillisThriftCodec;
+import com.facebook.drift.codec.utils.JodaDateTimeToEpochMillisThriftCodec;
 import com.google.common.base.VerifyException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.airlift.units.DataSize;
+import io.airlift.units.Duration;
+import org.joda.time.DateTime;
 
+import java.lang.reflect.Type;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -99,7 +109,20 @@ public class ThriftIdlGenerator
         this.classLoader = requireNonNull(classLoader, "classLoader is null");
 
         Monitor monitor = createMonitor(config.getErrorLogger(), config.getWarningLogger());
-        this.codecManager = new ThriftCodecManager(new ThriftCatalog(monitor));
+        ThriftCatalog catalog = new ThriftCatalog(monitor);
+        this.codecManager = new ThriftCodecManager(catalog);
+
+        ThriftCodec<Duration> durationThriftCodec = new DurationToMillisThriftCodec(catalog);
+        this.codecManager.addCodec(durationThriftCodec);
+        this.knownTypes.add(durationThriftCodec.getType());
+
+        ThriftCodec<DataSize> dataSizeThriftCodec = new DataSizeToBytesThriftCodec(catalog);
+        this.codecManager.addCodec(dataSizeThriftCodec);
+        this.knownTypes.add(dataSizeThriftCodec.getType());
+
+        ThriftCodec<DateTime> dateTimeThriftCodec = new JodaDateTimeToEpochMillisThriftCodec(catalog);
+        this.codecManager.addCodec(dateTimeThriftCodec);
+        this.knownTypes.add(dateTimeThriftCodec.getType());
 
         this.verboseLogger = config.getVerboseLogger();
         String defaultPackage = config.getDefaultPackage();
@@ -185,7 +208,7 @@ public class ThriftIdlGenerator
 
             recursive = false;
             usedIncludedTypes.clear();
-            knownTypes = new HashSet<>(BUILT_IN_TYPES);
+//            knownTypes = new HashSet<>(BUILT_IN_TYPES);
         }
         return verifyTypes() & verifyServices();
     }
@@ -318,6 +341,11 @@ public class ThriftIdlGenerator
     @SuppressFBWarnings("NS_DANGEROUS_NON_SHORT_CIRCUIT")
     private boolean verifyField(ThriftType type)
     {
+        if (ReflectionHelper.isOptional(type.getJavaType())) {
+            Type javaType = type.getJavaType();
+            ThriftType thriftType = 
+        }
+
         ThriftProtocolType proto = type.getProtocolType();
         if (proto == ThriftProtocolType.SET || proto == ThriftProtocolType.LIST) {
             return verifyElementType(type.getValueTypeReference());
