@@ -1,3 +1,23 @@
+/**
+ * Type of fruit
+ */
+enum Fruit {
+  /**
+   * Large and sweet
+   */
+  APPLE = 2;
+
+  /**
+   * Yellow
+   */
+  BANANA = 3;
+
+  /**
+   * Small and tart
+   */
+  CHERRY = 5;
+}
+
 struct MyClass {
   1: double duration;
   2: double dataSize;
@@ -5,4 +25,5 @@ struct MyClass {
   4: optional string optionalString;
   5: string locale;
   6: i64 optionalLong;
+  7: Fruit optionalFruit;
 }

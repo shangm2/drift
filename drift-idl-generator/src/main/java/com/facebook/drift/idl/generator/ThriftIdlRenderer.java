@@ -166,11 +166,14 @@ public final class ThriftIdlRenderer
                             field.getId(),
                             requiredness(field.getRequiredness()),
                             typeName(field.getThriftType()),
-                            field.getName()));
+                            field.getName()),
+                            formatMap(field.getIdlAnnotations())));
         }
 
         return builder.append("}\n").toString();
     }
+
+    
 
     private static String structKind(ThriftStructMetadata struct)
     {

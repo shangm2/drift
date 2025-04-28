@@ -15,22 +15,33 @@
  */
 package com.facebook.drift.idl.generator;
 
+import com.facebook.drift.codec.ThriftCodecManager;
+import com.facebook.drift.codec.metadata.ReflectionHelper;
 import com.facebook.drift.codec.metadata.ThriftType;
 import com.google.common.collect.ImmutableMap;
 
+import java.lang.reflect.Type;
 import java.util.Map;
 
 public class ThriftTypeRenderer
 {
     private final Map<ThriftType, String> typeNames;
+    private final ThriftCodecManager codecManager;
 
-    public ThriftTypeRenderer(Map<ThriftType, String> typeNames)
+    public ThriftTypeRenderer(Map<ThriftType, String> typeNames, ThriftCodecManager codecManager)
     {
         this.typeNames = ImmutableMap.copyOf(typeNames);
+        this.codecManager = codecManager;
     }
 
     public String toString(ThriftType type)
     {
+        if (ReflectionHelper.isOptional(type.getJavaType())) {
+            Type unwrappedJavaType = ReflectionHelper.getOptionalType(type.getJavaType());
+            ThriftType thriftType = this.codecManager.getCatalog().getThriftType(unwrappedJavaType);
+            return toString(thriftType);
+        }
+
         switch (type.getProtocolType()) {
             case BOOL:
                 return "bool";

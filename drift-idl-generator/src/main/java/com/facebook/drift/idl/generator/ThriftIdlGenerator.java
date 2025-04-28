@@ -93,7 +93,7 @@ public class ThriftIdlGenerator
     private final Map<String, String> namespaces;
 
     private Set<ThriftType> knownTypes = new HashSet<>(BUILT_IN_TYPES);
-    private ThriftTypeRenderer typeRenderer = new ThriftTypeRenderer(ImmutableMap.of());
+    private ThriftTypeRenderer typeRenderer = new ThriftTypeRenderer(ImmutableMap.of(), null);
     private List<ThriftType> thriftTypes = new CopyOnWriteArrayList<>();
     private List<ThriftServiceMetadata> thriftServices = new CopyOnWriteArrayList<>();
     private boolean recursive;
@@ -444,7 +444,7 @@ public class ThriftIdlGenerator
             includesBuilder.add(filename);
             typesBuilder.put(type, getNameWithoutExtension(filename));
         }
-        typeRenderer = new ThriftTypeRenderer(typesBuilder.build());
+        typeRenderer = new ThriftTypeRenderer(typesBuilder.build(), this.codecManager);
         return renderThriftIdl(namespaces, includesBuilder.build(), thriftTypes, thriftServices, typeRenderer);
     }
 

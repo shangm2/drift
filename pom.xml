@@ -83,6 +83,12 @@
 
             <dependency>
                 <groupId>com.facebook.drift</groupId>
+                <artifactId>drift-codec-utils</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.facebook.drift</groupId>
                 <artifactId>drift-idl-generator</artifactId>
                 <version>${project.version}</version>
             </dependency>

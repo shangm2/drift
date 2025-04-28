@@ -47,4 +47,7 @@ public class MyClass
 
     @ThriftField(6)
     public OptionalLong optionalLong;
+
+    @ThriftField(7)
+    public Optional<Fruit> optionalFruit;
 }
