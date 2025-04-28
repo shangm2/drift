@@ -34,7 +34,7 @@ public class TestThriftIdlGenerator
     public void testGenerator()
             throws Exception
     {
-        assertGenerated(MyClass.class, "scribe", ignored -> {});
+        assertGenerated(MyClass.class, "myclass", ignored -> {});
     }
 
     private static void assertGenerated(Class<?> clazz, String name, Consumer<ThriftIdlGeneratorConfig.Builder> configConsumer)

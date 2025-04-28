@@ -21,7 +21,11 @@ import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import org.joda.time.DateTime;
 
+import java.util.Locale;
 import java.util.Optional;
+import java.util.OptionalLong;
+
+import static com.facebook.drift.annotations.ThriftField.Requiredness.OPTIONAL;
 
 @ThriftStruct
 public class MyClass
@@ -35,9 +39,12 @@ public class MyClass
     @ThriftField(3)
     public DateTime dateTime;
 
-    @ThriftField(4)
-    public Optional<DateTime> optionalDateTime;
+    @ThriftField(value = 4, requiredness = OPTIONAL)
+    public Optional<String> optionalString;
 
     @ThriftField(5)
-    public Optional<String> optionalString;
+    public Locale locale;
+
+    @ThriftField(6)
+    public OptionalLong optionalLong;
 }

@@ -16,10 +16,11 @@
 package com.facebook.drift.idl.generator;
 
 import com.facebook.drift.annotations.ThriftService;
-import com.facebook.drift.codec.ThriftCodec;
 import com.facebook.drift.codec.ThriftCodecManager;
 import com.facebook.drift.codec.ThriftProtocolType;
-import com.facebook.drift.codec.internal.builtin.OptionalThriftCodec;
+import com.facebook.drift.codec.internal.builtin.OptionalDoubleThriftCodec;
+import com.facebook.drift.codec.internal.builtin.OptionalIntThriftCodec;
+import com.facebook.drift.codec.internal.builtin.OptionalLongThriftCodec;
 import com.facebook.drift.codec.metadata.FieldKind;
 import com.facebook.drift.codec.metadata.MetadataErrorException;
 import com.facebook.drift.codec.metadata.MetadataErrors.Monitor;
@@ -35,14 +36,12 @@ import com.facebook.drift.codec.metadata.ThriftTypeReference;
 import com.facebook.drift.codec.utils.DataSizeToBytesThriftCodec;
 import com.facebook.drift.codec.utils.DurationToMillisThriftCodec;
 import com.facebook.drift.codec.utils.JodaDateTimeToEpochMillisThriftCodec;
+import com.facebook.drift.codec.utils.LocaleToLanguageTagCodec;
 import com.google.common.base.VerifyException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import io.airlift.units.DataSize;
-import io.airlift.units.Duration;
-import org.joda.time.DateTime;
 
 import java.lang.reflect.Type;
 import java.net.URI;
@@ -112,17 +111,13 @@ public class ThriftIdlGenerator
         ThriftCatalog catalog = new ThriftCatalog(monitor);
         this.codecManager = new ThriftCodecManager(catalog);
 
-        ThriftCodec<Duration> durationThriftCodec = new DurationToMillisThriftCodec(catalog);
-        this.codecManager.addCodec(durationThriftCodec);
-        this.knownTypes.add(durationThriftCodec.getType());
-
-        ThriftCodec<DataSize> dataSizeThriftCodec = new DataSizeToBytesThriftCodec(catalog);
-        this.codecManager.addCodec(dataSizeThriftCodec);
-        this.knownTypes.add(dataSizeThriftCodec.getType());
-
-        ThriftCodec<DateTime> dateTimeThriftCodec = new JodaDateTimeToEpochMillisThriftCodec(catalog);
-        this.codecManager.addCodec(dateTimeThriftCodec);
-        this.knownTypes.add(dateTimeThriftCodec.getType());
+        this.knownTypes.add(new DurationToMillisThriftCodec(catalog).getType());
+        this.knownTypes.add(new DataSizeToBytesThriftCodec(catalog).getType());
+        this.knownTypes.add(new JodaDateTimeToEpochMillisThriftCodec(catalog).getType());
+        this.knownTypes.add(new LocaleToLanguageTagCodec(catalog).getType());
+        this.knownTypes.add(new OptionalLongThriftCodec().getType());
+        this.knownTypes.add(new OptionalIntThriftCodec().getType());
+        this.knownTypes.add(new OptionalDoubleThriftCodec().getType());
 
         this.verboseLogger = config.getVerboseLogger();
         String defaultPackage = config.getDefaultPackage();
@@ -341,9 +336,11 @@ public class ThriftIdlGenerator
     @SuppressFBWarnings("NS_DANGEROUS_NON_SHORT_CIRCUIT")
     private boolean verifyField(ThriftType type)
     {
+        System.out.println(format("-- verify field: javatype: %s, prototype: %s ", type.getJavaType(), type.getProtocolType()));
         if (ReflectionHelper.isOptional(type.getJavaType())) {
-            Type javaType = type.getJavaType();
-            ThriftType thriftType = 
+            Type unwrappedJavaType = ReflectionHelper.getOptionalType(type.getJavaType());
+            ThriftType thriftType = this.codecManager.getCatalog().getThriftType(unwrappedJavaType);
+            return verifyField(thriftType);
         }
 
         ThriftProtocolType proto = type.getProtocolType();
@@ -373,6 +370,7 @@ public class ThriftIdlGenerator
 
     private boolean verifyStruct(ThriftType type, boolean quiet)
     {
+        System.out.println(format("verify struct: javatype: %s, prototype: %s ", type.getJavaType(), type.getProtocolType()));
         if (type.getProtocolType() == ThriftProtocolType.ENUM) {
             knownTypes.add(type);
             return true;
@@ -452,6 +450,7 @@ public class ThriftIdlGenerator
 
     private String typeName(ThriftType type)
     {
+        System.out.println(format("----- IDL generator typeName, java type: %s, protocol type: %s", type.getJavaType(), type.getProtocolType()));
         return typeRenderer.toString(type);
     }
 

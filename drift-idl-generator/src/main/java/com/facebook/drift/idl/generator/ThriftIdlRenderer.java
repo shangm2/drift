@@ -258,6 +258,7 @@ public final class ThriftIdlRenderer
 
     private String typeName(ThriftType type)
     {
+        System.out.println(format("----- IDL renderer typeName, java type: %s, protocol type: %s", type.getJavaType(), type.getProtocolType()));
         return typeRenderer.toString(type);
     }
 
