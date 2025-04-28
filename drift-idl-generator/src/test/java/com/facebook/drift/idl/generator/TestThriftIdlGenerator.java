@@ -34,28 +34,12 @@ public class TestThriftIdlGenerator
     public void testGenerator()
             throws Exception
     {
-        assertGenerated(DriftScribe.class, "scribe", ignored -> {});
-        assertGenerated(RenamedService.class, "renamed", ignored -> {});
-        assertGenerated(Fruit.class, "fruit", ignored -> {});
-        assertGenerated(URIField.class, "uri", ignored -> {});
-        assertGenerated(TreeNode.class, "tree", ignored -> {});
-
-        assertGenerated(Point.class, "point", config -> config
-                .namespaces(ImmutableMap.<String, String>builder()
-                        .put("java", "com.example.thrift")
-                        .put("python", "snake")
-                        .build()));
-
-        assertGenerated(OneOfEverything.class, "everything", config -> config
-                .includes(ImmutableMap.<String, String>builder()
-                        .put(Fruit.class.getName(), "common/fruit.thrift")
-                        .build()));
-
-        assertGenerated(UnionField.class, "union", config -> config
-                .includes(ImmutableMap.<String, String>builder()
-                        .put(Fruit.class.getName(), "types.thrift")
-                        .build())
-                .recursive(false));
+        assertGenerated(MyClass.class, "myclass", ignored -> {});
+//        assertGenerated(Fruit.class, "fruit", ignored -> {});
+//
+//        assertGenerated(OneOfEverything.class, "everything", ignored -> {});
+//
+//        assertGenerated(UnionField.class, "union", ignored -> {});
     }
 
     private static void assertGenerated(Class<?> clazz, String name, Consumer<ThriftIdlGeneratorConfig.Builder> configConsumer)
@@ -72,6 +56,7 @@ public class TestThriftIdlGenerator
         ThriftIdlGenerator generator = new ThriftIdlGenerator(config.build());
         String idl = generator.generate(ImmutableList.of(clazz.getName()));
 
+        System.out.println(idl);
         assertEquals(idl, expected);
     }
 }

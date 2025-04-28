@@ -16,21 +16,29 @@
 package com.facebook.drift.idl.generator;
 
 import com.facebook.drift.annotations.ThriftField;
-import com.facebook.drift.annotations.ThriftUnion;
-import com.facebook.drift.annotations.ThriftUnionId;
+import com.facebook.drift.annotations.ThriftIdlAnnotation;
+import com.facebook.drift.annotations.ThriftStruct;
+import io.airlift.units.DataSize;
+import io.airlift.units.Duration;
 
-@ThriftUnion("Combined")
-public final class UnionField
+import java.util.Locale;
+import java.util.Optional;
+
+import static com.facebook.drift.annotations.ThriftField.Requiredness.OPTIONAL;
+
+@ThriftStruct("URIField")
+public class MyClass
 {
-    @ThriftField(1)
-    public String stringValue;
+    @ThriftField(value = 1, idlAnnotations = {
+            @ThriftIdlAnnotation(key = "cpp.ref_type", value = "\"shared\"")})
+    public Duration duration;
 
     @ThriftField(2)
-    public Long longValue;
+    public DataSize dataSize;
 
     @ThriftField(3)
-    public Fruit fruitValue;
+    public Locale locale;
 
-    @ThriftUnionId
-    public short id;
+    @ThriftField(value = 4, requiredness = OPTIONAL)
+    public Optional<String> optionalString;
 }

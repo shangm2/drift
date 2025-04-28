@@ -22,6 +22,7 @@ import com.facebook.drift.codec.metadata.FieldKind;
 import com.facebook.drift.codec.metadata.MetadataErrorException;
 import com.facebook.drift.codec.metadata.MetadataErrors.Monitor;
 import com.facebook.drift.codec.metadata.MetadataWarningException;
+import com.facebook.drift.codec.metadata.ReflectionHelper;
 import com.facebook.drift.codec.metadata.ThriftCatalog;
 import com.facebook.drift.codec.metadata.ThriftFieldMetadata;
 import com.facebook.drift.codec.metadata.ThriftMethodMetadata;
@@ -29,12 +30,17 @@ import com.facebook.drift.codec.metadata.ThriftServiceMetadata;
 import com.facebook.drift.codec.metadata.ThriftStructMetadata;
 import com.facebook.drift.codec.metadata.ThriftType;
 import com.facebook.drift.codec.metadata.ThriftTypeReference;
+import com.facebook.drift.codec.utils.DataSizeToBytesThriftCodec;
+import com.facebook.drift.codec.utils.DurationToMillisThriftCodec;
+import com.facebook.drift.codec.utils.JodaDateTimeToEpochMillisThriftCodec;
+import com.facebook.drift.codec.utils.LocaleToLanguageTagCodec;
 import com.google.common.base.VerifyException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
+import java.lang.reflect.Type;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -55,25 +61,42 @@ import static java.util.Objects.requireNonNull;
 
 public class ThriftIdlGenerator
 {
-    private static final Set<ThriftType> BUILT_IN_TYPES = ImmutableSet.<ThriftType>builder()
-            .add(ThriftType.BOOL)
-            .add(ThriftType.BYTE)
-            .add(ThriftType.I16)
-            .add(ThriftType.I32)
-            .add(ThriftType.I64)
-            .add(ThriftType.DOUBLE)
-            .add(ThriftType.STRING)
-            .add(new ThriftType(ThriftType.STRING, URI.class))
-            .add(ThriftType.BINARY)
-            .add(new ThriftType(ThriftType.BOOL, Boolean.class))
-            .add(new ThriftType(ThriftType.BYTE, Byte.class))
-            .add(new ThriftType(ThriftType.I16, Short.class))
-            .add(new ThriftType(ThriftType.I32, Integer.class))
-            .add(new ThriftType(ThriftType.I64, Long.class))
-            .add(new ThriftType(ThriftType.DOUBLE, Double.class))
-            .add(new ThriftType(ThriftType.STRING, String.class))
-            .add(new ThriftType(ThriftType.BINARY, byte[].class))
+    private static final ThriftCatalog SHARED_CATALOG;
+    private static final Set<ThriftType> BUILT_IN_TYPES = new HashSet<>();
+    private static final ThriftIdlGeneratorConfig CONFIG = ThriftIdlGeneratorConfig.builder()
+            .namespaces(ImmutableMap.of("cpp", "facebook.presto.protocol"))
+            .recursive(true)
             .build();
+    private static final Monitor MONITOR;
+
+    static {
+        MONITOR = createMonitor(CONFIG.getErrorLogger(), CONFIG.getWarningLogger());
+
+        SHARED_CATALOG = new ThriftCatalog(MONITOR);
+
+        BUILT_IN_TYPES.add(ThriftType.BOOL);
+        BUILT_IN_TYPES.add(ThriftType.BYTE);
+        BUILT_IN_TYPES.add(ThriftType.I16);
+        BUILT_IN_TYPES.add(ThriftType.I32);
+        BUILT_IN_TYPES.add(ThriftType.I64);
+        BUILT_IN_TYPES.add(ThriftType.DOUBLE);
+        BUILT_IN_TYPES.add(ThriftType.STRING);
+        BUILT_IN_TYPES.add(new ThriftType(ThriftType.STRING, URI.class));
+        BUILT_IN_TYPES.add(ThriftType.BINARY);
+        BUILT_IN_TYPES.add(new ThriftType(ThriftType.BOOL, Boolean.class));
+        BUILT_IN_TYPES.add(new ThriftType(ThriftType.BYTE, Byte.class));
+        BUILT_IN_TYPES.add(new ThriftType(ThriftType.I16, Short.class));
+        BUILT_IN_TYPES.add(new ThriftType(ThriftType.I32, Integer.class));
+        BUILT_IN_TYPES.add(new ThriftType(ThriftType.I64, Long.class));
+        BUILT_IN_TYPES.add(new ThriftType(ThriftType.DOUBLE, Double.class));
+        BUILT_IN_TYPES.add(new ThriftType(ThriftType.STRING, String.class));
+        BUILT_IN_TYPES.add(new ThriftType(ThriftType.BINARY, byte[].class));
+
+        BUILT_IN_TYPES.add(new DurationToMillisThriftCodec(SHARED_CATALOG).getType());
+        BUILT_IN_TYPES.add(new DataSizeToBytesThriftCodec(SHARED_CATALOG).getType());
+        BUILT_IN_TYPES.add(new LocaleToLanguageTagCodec(SHARED_CATALOG).getType());
+        BUILT_IN_TYPES.add(new JodaDateTimeToEpochMillisThriftCodec(SHARED_CATALOG).getType());
+    }
 
     private final ClassLoader classLoader;
     private final Consumer<String> verboseLogger;
@@ -94,15 +117,14 @@ public class ThriftIdlGenerator
         this(config, firstNonNull(Thread.currentThread().getContextClassLoader(), ClassLoader.getSystemClassLoader()));
     }
 
-    public ThriftIdlGenerator(ThriftIdlGeneratorConfig config, ClassLoader classLoader)
+    public ThriftIdlGenerator(ThriftIdlGeneratorConfig config2, ClassLoader classLoader)
     {
         this.classLoader = requireNonNull(classLoader, "classLoader is null");
 
-        Monitor monitor = createMonitor(config.getErrorLogger(), config.getWarningLogger());
-        this.codecManager = new ThriftCodecManager(new ThriftCatalog(monitor));
+        this.codecManager = new ThriftCodecManager(SHARED_CATALOG);
 
-        this.verboseLogger = config.getVerboseLogger();
-        String defaultPackage = config.getDefaultPackage();
+        this.verboseLogger = CONFIG.getVerboseLogger();
+        String defaultPackage = CONFIG.getDefaultPackage();
 
         if (defaultPackage.isEmpty()) {
             this.defaultPackage = "";
@@ -111,7 +133,7 @@ public class ThriftIdlGenerator
             this.defaultPackage = defaultPackage + ".";
         }
 
-        Map<String, String> paramIncludeMap = config.getIncludes();
+        Map<String, String> paramIncludeMap = CONFIG.getIncludes();
         for (Map.Entry<String, String> entry : paramIncludeMap.entrySet()) {
             Class<?> clazz = load(entry.getKey());
             if (clazz == null) {
@@ -122,8 +144,8 @@ public class ThriftIdlGenerator
             this.includes.put(result, entry.getValue());
         }
 
-        this.namespaces = config.getNamespaces();
-        this.recursive = config.isRecursive();
+        this.namespaces = CONFIG.getNamespaces();
+        this.recursive = CONFIG.isRecursive();
     }
 
     public String generate(Iterable<String> inputs)
@@ -318,6 +340,14 @@ public class ThriftIdlGenerator
     @SuppressFBWarnings("NS_DANGEROUS_NON_SHORT_CIRCUIT")
     private boolean verifyField(ThriftType type)
     {
+        System.out.println("     =====> verify field protocol: " + type.getProtocolType() + ", java type: " + type.getJavaType());
+
+        if (ReflectionHelper.isOptional(type.getJavaType())) {
+            Type unwrappedJavaType = ReflectionHelper.getOptionalType(type.getJavaType());
+            ThriftType unwrappedThriftType = this.codecManager.getCatalog().getThriftType(unwrappedJavaType);
+            return verifyField(unwrappedThriftType);
+        }
+
         ThriftProtocolType proto = type.getProtocolType();
         if (proto == ThriftProtocolType.SET || proto == ThriftProtocolType.LIST) {
             return verifyElementType(type.getValueTypeReference());
@@ -345,6 +375,8 @@ public class ThriftIdlGenerator
 
     private boolean verifyStruct(ThriftType type, boolean quiet)
     {
+        System.out.println("=====> verify struct protocol: " + type.getProtocolType() + ", java type: " + type.getJavaType());
+
         if (type.getProtocolType() == ThriftProtocolType.ENUM) {
             knownTypes.add(type);
             return true;

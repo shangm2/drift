@@ -1,0 +1,8 @@
+namespace cpp facebook.presto.protocol
+
+struct URIField {
+  1: double duration (cpp.ref_type="shared");
+  2: double dataSize ;
+  3: string locale ;
+  4: optional string optionalString ;
+}

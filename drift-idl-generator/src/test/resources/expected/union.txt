@@ -1,7 +1,27 @@
-include "types.thrift"
+namespace cpp facebook.presto.protocol
+
+/**
+ * Type of fruit
+ */
+enum Fruit {
+  /**
+   * Large and sweet
+   */
+  APPLE = 2;
+
+  /**
+   * Yellow
+   */
+  BANANA = 3;
+
+  /**
+   * Small and tart
+   */
+  CHERRY = 5;
+}
 
 union Combined {
   1: string stringValue;
   2: i64 longValue;
-  3: types.Fruit fruitValue;
+  3: Fruit fruitValue;
 }

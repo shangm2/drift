@@ -77,6 +77,12 @@
 
             <dependency>
                 <groupId>com.facebook.drift</groupId>
+                <artifactId>drift-codec-utils</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.facebook.drift</groupId>
                 <artifactId>drift-client</artifactId>
                 <version>${project.version}</version>
             </dependency>

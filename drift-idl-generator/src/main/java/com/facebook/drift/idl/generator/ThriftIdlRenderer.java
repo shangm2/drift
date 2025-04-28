@@ -160,16 +160,40 @@ public final class ThriftIdlRenderer
             if (field.isInternal()) {
                 continue;
             }
+            System.out.println("====> 1");
             builder.append(separator.getAndUpdate(!field.getDocumentation().isEmpty()))
                     .append(documentation(field.getDocumentation(), "  "))
-                    .append(format("  %s: %s%s %s;\n",
+                    .append(format("  %s: %s%s %s %s;\n",
                             field.getId(),
                             requiredness(field.getRequiredness()),
                             typeName(field.getThriftType()),
-                            field.getName()));
+                            field.getName(),
+                            formatMap(field.getIdlAnnotations())));
         }
 
         return builder.append("}\n").toString();
+    }
+
+    private static String formatMap(Map<String, String> map)
+    {
+        if (map.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("(");
+
+        for (Map.Entry<String, String> entry : map.entrySet()) {
+            sb.append(entry.getKey()).append("=").append(entry.getValue()).append(", ");
+        }
+
+        // Remove the trailing comma and space, if the map is not empty
+        if (!map.isEmpty()) {
+            sb.setLength(sb.length() - 2);
+        }
+
+        sb.append(")");
+
+        return sb.toString();
     }
 
     private static String structKind(ThriftStructMetadata struct)
@@ -218,12 +242,12 @@ public final class ThriftIdlRenderer
     {
         StringBuilder builder = new StringBuilder()
                 .append(documentation(method.getDocumentation(), "  "));
-
+        System.out.println("====> 2");
         String methodStart = format("  %s%s %s(",
                 method.getOneway() ? "oneway " : "",
                 typeName(method.getReturnType()),
                 method.getName());
-
+        System.out.println("====> 3");
         List<String> parameters = method.getParameters().stream()
                 .map(parameter -> format("%s: %s %s",
                         parameter.getId(),
@@ -233,6 +257,7 @@ public final class ThriftIdlRenderer
 
         builder.append(renderParameters(methodStart, parameters));
 
+        System.out.println("====> 4");
         if (!method.getExceptions().isEmpty()) {
             List<String> exceptions = mapWithIndex(method.getExceptions().entrySet().stream(),
                     (entry, index) -> format("%s: %s ex%s",

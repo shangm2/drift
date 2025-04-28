@@ -1,4 +1,24 @@
-include "common/fruit.thrift"
+namespace cpp facebook.presto.protocol
+
+/**
+ * Type of fruit
+ */
+enum Fruit {
+  /**
+   * Large and sweet
+   */
+  APPLE = 2;
+
+  /**
+   * Yellow
+   */
+  BANANA = 3;
+
+  /**
+   * Small and tart
+   */
+  CHERRY = 5;
+}
 
 enum Letter {
   A = 65;
@@ -15,7 +35,7 @@ struct Bonk {
 union Combined {
   1: string stringValue;
   2: i64 longValue;
-  3: fruit.Fruit fruitValue;
+  3: Fruit fruitValue;
 }
 
 struct URIField {
@@ -31,7 +51,7 @@ struct OneOfEverything {
   6: double aDouble;
   7: string aString;
   8: Bonk aStruct;
-  9: fruit.Fruit aEnum;
+  9: Fruit aEnum;
   10: Letter aCustomEnum;
   11: set<bool> aBooleanSet;
   12: set<byte> aByteSet;
@@ -41,7 +61,7 @@ struct OneOfEverything {
   16: set<double> aDoubleSet;
   17: set<string> aStringSet;
   18: set<Bonk> aStructSet;
-  19: set<fruit.Fruit> aEnumSet;
+  19: set<Fruit> aEnumSet;
   20: set<Letter> aCustomEnumSet;
   21: list<bool> aBooleanList;
   22: list<byte> aByteList;
@@ -51,7 +71,7 @@ struct OneOfEverything {
   26: list<double> aDoubleList;
   27: list<string> aStringList;
   28: list<Bonk> aStructList;
-  29: list<fruit.Fruit> aEnumList;
+  29: list<Fruit> aEnumList;
   30: list<Letter> aCustomEnumList;
   31: map<string, bool> aBooleanValueMap;
   32: map<string, byte> aByteValueMap;
@@ -61,7 +81,7 @@ struct OneOfEverything {
   36: map<string, double> aDoubleValueMap;
   37: map<string, string> aStringValueMap;
   38: map<string, Bonk> aStructValueMap;
-  39: map<string, fruit.Fruit> aEnumValueMap;
+  39: map<string, Fruit> aEnumValueMap;
   40: map<string, Letter> aCustomEnumValueMap;
   41: map<bool, string> aBooleanKeyMap;
   42: map<byte, string> aByteKeyMap;
@@ -71,7 +91,7 @@ struct OneOfEverything {
   46: map<double, string> aDoubleKeyMap;
   47: map<string, string> aStringKeyMap;
   48: map<Bonk, string> aStructKeyMap;
-  49: map<fruit.Fruit, string> aEnumKeyMap;
+  49: map<Fruit, string> aEnumKeyMap;
   50: map<Letter, string> aCustomEnumKeyMap;
   60: Combined aUnion;
   61: set<Combined> aUnionSet;

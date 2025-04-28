@@ -131,15 +131,15 @@ public final class OneOfEverything
     public Map<Letter, String> aCustomEnumKeyMap;
 
     @ThriftField(60)
-    public UnionField aUnion;
+    public MyUnion aUnion;
     @ThriftField(61)
-    public Set<UnionField> aUnionSet;
+    public Set<MyUnion> aUnionSet;
     @ThriftField(62)
-    public List<UnionField> aUnionList;
+    public List<MyUnion> aUnionList;
     @ThriftField(63)
-    public Map<UnionField, String> aUnionKeyMap;
+    public Map<MyUnion, String> aUnionKeyMap;
     @ThriftField(64)
-    public Map<String, UnionField> aUnionValueMap;
+    public Map<String, MyUnion> aUnionValueMap;
 
     @ThriftField(70)
     public byte[] aByteArray;
