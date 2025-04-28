@@ -16,6 +16,7 @@
 package com.facebook.drift.idl.generator;
 
 import com.facebook.drift.annotations.ThriftField;
+import com.facebook.drift.annotations.ThriftIdlAnnotation;
 import com.facebook.drift.annotations.ThriftStruct;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
@@ -30,7 +31,8 @@ import static com.facebook.drift.annotations.ThriftField.Requiredness.OPTIONAL;
 @ThriftStruct
 public class MyClass
 {
-    @ThriftField(1)
+    @ThriftField(value = 1, idlAnnotations = {
+            @ThriftIdlAnnotation(key = "cpp.ref_type", value = "\"shared\"")})
     public Duration duration;
 
     @ThriftField(2)

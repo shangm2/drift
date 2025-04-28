@@ -162,18 +162,38 @@ public final class ThriftIdlRenderer
             }
             builder.append(separator.getAndUpdate(!field.getDocumentation().isEmpty()))
                     .append(documentation(field.getDocumentation(), "  "))
-                    .append(format("  %s: %s%s %s;\n",
+                    .append(format("  %s: %s%s %s %s;\n",
                             field.getId(),
                             requiredness(field.getRequiredness()),
                             typeName(field.getThriftType()),
-                            field.getName()),
+                            field.getName(),
                             formatMap(field.getIdlAnnotations())));
         }
 
         return builder.append("}\n").toString();
     }
 
-    
+    private static String formatMap(Map<String, String> map)
+    {
+        if (map.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("(");
+
+        for (Map.Entry<String, String> entry : map.entrySet()) {
+            sb.append(entry.getKey()).append("=").append(entry.getValue()).append(", ");
+        }
+
+        // Remove the trailing comma and space, if the map is not empty
+        if (!map.isEmpty()) {
+            sb.setLength(sb.length() - 2);
+        }
+
+        sb.append(")");
+
+        return sb.toString();
+    }
 
     private static String structKind(ThriftStructMetadata struct)
     {

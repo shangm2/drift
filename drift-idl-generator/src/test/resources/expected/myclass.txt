@@ -19,11 +19,11 @@ enum Fruit {
 }
 
 struct MyClass {
-  1: double duration;
-  2: double dataSize;
-  3: i64 dateTime;
-  4: optional string optionalString;
-  5: string locale;
-  6: i64 optionalLong;
-  7: Fruit optionalFruit;
+  1: double duration (cpp.ref_type="shared");
+  2: double dataSize ;
+  3: i64 dateTime ;
+  4: optional string optionalString ;
+  5: string locale ;
+  6: i64 optionalLong ;
+  7: Fruit optionalFruit ;
 }
