@@ -41,15 +41,15 @@ public class MyClass
     @ThriftField(3)
     public DateTime dateTime;
 
-    @ThriftField(value = 4, requiredness = OPTIONAL)
+    @ThriftField(value = 4)
     public Optional<String> optionalString;
 
-    @ThriftField(5)
+    @ThriftField(value = 5, requiredness = OPTIONAL)
     public Locale locale;
 
     @ThriftField(6)
     public OptionalLong optionalLong;
 
     @ThriftField(7)
-    public Optional<Fruit> optionalFruit;
+    public Optional<Point> optionalPoint;
 }
