@@ -42,7 +42,7 @@ public class LocaleToLanguageTagCodec
     }
 
     @CodecThriftType
-    public static ThriftType getThriftType(ThriftCatalog catalog)
+    public static ThriftType getThriftType()
     {
         return THRIFT_TYPE;
     }

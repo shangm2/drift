@@ -15,44 +15,35 @@
  */
 package com.facebook.drift.protocol;
 
-import static java.lang.Math.max;
+import com.google.common.io.ByteArrayDataOutput;
+import com.google.common.io.ByteStreams;
 
-public class TMemoryBuffer
+public class TMemoryBufferWriteOnly
         implements TTransport
 {
-    private byte[] data;
-    private int head;
-    private int tail;
+    private ByteArrayDataOutput data;
 
-    public TMemoryBuffer(int initialSize)
+    public TMemoryBufferWriteOnly(int size)
     {
-        data = new byte[max(initialSize, 16)];
+        data = ByteStreams.newDataOutput(size);
     }
 
     @Override
     public void read(byte[] buf, int off, int len)
             throws TTransportException
     {
-        if (head - tail < len) {
-            throw new TTransportException("Too few bytes in buffer");
-        }
-        System.arraycopy(data, tail, buf, off, len);
-        tail += len;
+        throw new UnsupportedOperationException("Read operation is not supported");
     }
 
     @Override
     public void write(byte[] buf, int off, int len)
+            throws TTransportException
     {
-        int available = data.length - head;
-        if (available < len) {
-            int need = len - available - tail;
-            byte[] temp = new byte[max(data.length * 2, need)];
-            System.arraycopy(data, tail, temp, 0, head - tail);
-            data = temp;
-            head -= tail;
-            tail = 0;
-        }
-        System.arraycopy(buf, off, data, head, len);
-        head += len;
+        data.write(buf, off, len);
+    }
+
+    public byte[] getBytes()
+    {
+        return data.toByteArray();
     }
 }
