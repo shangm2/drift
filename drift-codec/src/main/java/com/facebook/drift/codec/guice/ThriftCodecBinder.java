@@ -21,9 +21,12 @@ import com.facebook.drift.codec.ThriftCodecManager;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Key;
+import com.google.inject.Module;
 import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
+import com.google.inject.binder.LinkedBindingBuilder;
 import com.google.inject.internal.MoreTypes.ParameterizedTypeImpl;
+import com.google.inject.multibindings.Multibinder;
 
 import javax.inject.Provider;
 
@@ -43,10 +46,12 @@ public class ThriftCodecBinder
     }
 
     private final Binder binder;
+    private final Multibinder<Module> moduleBinder;
 
     private ThriftCodecBinder(Binder binder)
     {
         this.binder = binder;
+        this.moduleBinder = newSetBinder(binder, Module.class);
     }
 
     public void bindCustomThriftCodec(ThriftCodec<?> thriftCodec)
@@ -118,6 +123,11 @@ public class ThriftCodecBinder
 
         ParameterizedTypeImpl mapType = new ParameterizedTypeImpl(null, Map.class, keyType, valueType);
         binder.bind(getThriftCodecKey(mapType)).toProvider(new ThriftCodecProvider(mapType)).in(Scopes.SINGLETON);
+    }
+
+    public LinkedBindingBuilder<Module> addModuleBinding()
+    {
+        return moduleBinder.addBinding();
     }
 
     private Key<ThriftCodec<?>> getThriftCodecKey(Type type)
