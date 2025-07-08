@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableList;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -75,7 +76,7 @@ public class TChunkedBinaryProtocol
             int chunkSize,
             T value,
             ObjectWriter<T> writer,
-            Consumer<List<ByteBuf>> consumer)
+            Consumer<List<ByteBuffer>> consumer)
             throws Exception
     {
         if (chunkSize <= 0) {
