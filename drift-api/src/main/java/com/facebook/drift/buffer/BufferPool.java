@@ -13,10 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.facebook.drift.protocol.bytebuffer;
+package com.facebook.drift.buffer;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class BufferPool
 {
@@ -37,13 +38,51 @@ public class BufferPool
         this.maxCount = maxCount;
     }
 
-    public ByteBuffer acquire()
+    public static class OwnedBuffer
+            implements AutoCloseable
+    {
+        private final ByteBuffer buffer;
+        private final BufferPool pool;
+        private final AtomicBoolean released = new AtomicBoolean(false);
+
+        private OwnedBuffer(ByteBuffer buffer, BufferPool pool)
+        {
+            this.buffer = buffer;
+            this.pool = pool;
+        }
+
+        public ByteBuffer getBuffer()
+        {
+            if (released.get()) {
+                throw new IllegalStateException("Buffer has been released");
+            }
+            return buffer;
+        }
+
+        public void release()
+        {
+            if (released.compareAndSet(false, true)) {
+                pool.releaseInternal(buffer);
+            }
+            throw new IllegalStateException("Buffer has been released before.");
+        }
+
+        @Override
+        public void close()
+                throws Exception
+        {
+            release();
+        }
+    }
+
+    public OwnedBuffer acquireOwned()
     {
         ByteBuffer buffer = pool.poll();
         if (buffer == null) {
             buffer = ByteBuffer.allocate(bufferSize);
         }
         else {
+            // TODO: remove
             for (int i = 0; i < bufferSize; i++) {
                 buffer.put(i, (byte) 0);
                 buffer.limit(buffer.capacity());
@@ -52,10 +91,10 @@ public class BufferPool
             }
         }
 
-        return buffer;
+        return new OwnedBuffer(buffer, this);
     }
 
-    public void release(ByteBuffer buffer)
+    private void releaseInternal(ByteBuffer buffer)
     {
         // We only reuse buffer with the same size
         if (buffer.capacity() == bufferSize) {

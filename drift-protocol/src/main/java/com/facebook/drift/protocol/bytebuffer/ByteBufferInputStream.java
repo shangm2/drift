@@ -15,6 +15,8 @@
  */
 package com.facebook.drift.protocol.bytebuffer;
 
+import com.facebook.drift.buffer.OwnedBufferList;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -23,15 +25,17 @@ import java.util.List;
 public class ByteBufferInputStream
         extends InputStream
 {
-    public final List<ByteBuffer> buffers;
+    private final OwnedBufferList ownedBufferList;
+    private final List<ByteBuffer> bufferListView;
     private int currentBufferIndex;
     private ByteBuffer currentBuffer;
 
-    public ByteBufferInputStream(List<ByteBuffer> buffers)
+    public ByteBufferInputStream(OwnedBufferList ownedBufferList)
     {
-        this.buffers = buffers;
+        this.ownedBufferList = ownedBufferList;
+        this.bufferListView = ownedBufferList.getBuffers();
         this.currentBufferIndex = 0;
-        this.currentBuffer = buffers.isEmpty() ? null : buffers.get(0);
+        this.currentBuffer = bufferListView.isEmpty() ? null : bufferListView.get(currentBufferIndex);
     }
 
     @Override
@@ -88,8 +92,8 @@ public class ByteBufferInputStream
             return 0;
         }
         int available = currentBuffer.remaining();
-        for (int i = currentBufferIndex; i < buffers.size(); i++) {
-            available += buffers.get(i).remaining();
+        for (int i = currentBufferIndex; i < bufferListView.size(); i++) {
+            available += bufferListView.get(i).remaining();
         }
         return available;
     }
@@ -97,11 +101,11 @@ public class ByteBufferInputStream
     private void advanceBuffer()
     {
         currentBufferIndex++;
-        if (currentBufferIndex >= buffers.size()) {
+        if (currentBufferIndex >= bufferListView.size()) {
             currentBuffer = null;
         }
         else {
-            currentBuffer = buffers.get(currentBufferIndex).duplicate();
+            currentBuffer = bufferListView.get(currentBufferIndex);
         }
     }
 }

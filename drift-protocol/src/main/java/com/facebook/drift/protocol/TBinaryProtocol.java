@@ -16,11 +16,10 @@
 package com.facebook.drift.protocol;
 
 import com.facebook.drift.TException;
-import com.facebook.drift.protocol.bytebuffer.BufferPool;
+import com.facebook.drift.buffer.BufferPool;
+import com.facebook.drift.buffer.OwnedBufferList;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static com.facebook.drift.protocol.TProtocolUtil.readAllInBatches;
@@ -214,27 +213,20 @@ public class TBinaryProtocol
     }
 
     @Override
-    public void writeBinaryFromBufferList(List<ByteBuffer> buffers)
+    public void writeBinaryFromBufferList(OwnedBufferList ownedBufferList)
             throws TException
     {
+        List<ByteBuffer> buffersView = ownedBufferList.getBuffers();
+
         int size = 0;
-        for (ByteBuffer buffer : buffers) {
+        for (ByteBuffer buffer : buffersView) {
             System.out.println(format("=====> writeBinaryFromBufferList, position %d, limit %d", buffer.position(), buffer.limit()));
             size += buffer.remaining();
         }
         System.out.println("=====> write i32: " + size);
-
-        if (size > 3000) {
-            size = 0;
-            System.out.println("=====> buffer size " + buffers.size());
-            for (ByteBuffer buffer : buffers) {
-                size += buffer.remaining();
-            }
-            System.out.println("=====> write i32 second try: " + size);
-        }
         writeI32(size);
 
-        for (ByteBuffer buffer : buffers) {
+        for (ByteBuffer buffer : buffersView) {
             ByteBuffer duplicate = buffer.duplicate();
             transport.write(duplicate.array(), duplicate.arrayOffset() + duplicate.position(), duplicate.remaining());
         }
@@ -435,22 +427,22 @@ public class TBinaryProtocol
     }
 
     @Override
-    public List<ByteBuffer> readBinaryToBufferList(BufferPool pool)
+    public OwnedBufferList readBinaryToBufferList(BufferPool pool)
             throws TException
     {
         System.out.println("======> calling readBinaryToBufferList");
         int size = checkSize(readI32());
         System.out.println("=====> read i32: " + size);
 
+        OwnedBufferList ownedBufferList = new OwnedBufferList(pool);
         if (size == 0) {
-            return Collections.emptyList();
+            return ownedBufferList;
         }
 
-        List<ByteBuffer> buffers = new ArrayList<>();
         int remaining = size;
 
         while (remaining > 0) {
-            ByteBuffer buffer = pool.acquire();
+            ByteBuffer buffer = ownedBufferList.acquireBuffer();
             System.out.println("=====> new pool remaining: " + buffer.remaining());
             int bytesToRead = Math.min(remaining, buffer.remaining());
 
@@ -469,18 +461,19 @@ public class TBinaryProtocol
                     sb.append(String.format("%02X", b & 0xFF));
                 }
                 System.out.println(format("=====> duplicate position after reading: %d, limit: %d, with result: %s", duplicate.position(), duplicate.limit(), sb));
-
-                buffers.add(buffer);
                 remaining -= bytesToRead;
             }
             catch (Exception e) {
-                for (ByteBuffer buf : buffers) {
-                    pool.release(buf);
+                try {
+                    ownedBufferList.close();
+                }
+                catch (Exception e2) {
+                    throw new TProtocolException("Error reading binary data", e);
                 }
                 throw new TProtocolException("Error reading binary data", e);
             }
         }
-        return buffers;
+        return ownedBufferList;
     }
 
     private static int checkSize(int length)

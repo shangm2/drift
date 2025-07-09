@@ -15,12 +15,11 @@
  */
 package com.facebook.drift.protocol.bytebuffer;
 
+import com.facebook.drift.buffer.OwnedBufferList;
 import com.facebook.drift.protocol.TTransport;
 import com.facebook.drift.protocol.TTransportException;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.List;
 
 import static java.lang.String.format;
 
@@ -29,9 +28,9 @@ public class ByteBufferInputTransport
 {
     private final ByteBufferInputStream inputStream;
 
-    public ByteBufferInputTransport(List<ByteBuffer> buffers)
+    public ByteBufferInputTransport(OwnedBufferList ownedBufferList)
     {
-        inputStream = new ByteBufferInputStream(buffers);
+        inputStream = new ByteBufferInputStream(ownedBufferList);
     }
 
     @Override

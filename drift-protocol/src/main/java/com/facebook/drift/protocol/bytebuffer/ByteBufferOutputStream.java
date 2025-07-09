@@ -15,10 +15,12 @@
  */
 package com.facebook.drift.protocol.bytebuffer;
 
+import com.facebook.drift.buffer.BufferPool;
+import com.facebook.drift.buffer.OwnedBufferList;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-import java.util.List;
 
 import static java.lang.String.format;
 
@@ -26,15 +28,14 @@ public class ByteBufferOutputStream
         extends OutputStream
 {
     private final BufferPool pool;
-    private final List<ByteBuffer> buffers;
+    private final OwnedBufferList ownedBufferList;
     private ByteBuffer currentBuffer;
 
-    public ByteBufferOutputStream(BufferPool pool, List<ByteBuffer> buffers)
+    public ByteBufferOutputStream(BufferPool pool, OwnedBufferList ownedBufferList)
     {
         this.pool = pool;
-        this.buffers = buffers;
-        this.currentBuffer = pool.acquire();
-        buffers.add(currentBuffer);
+        this.ownedBufferList = ownedBufferList;
+        this.currentBuffer = ownedBufferList.acquireBuffer();
     }
 
     @Override
@@ -72,8 +73,7 @@ public class ByteBufferOutputStream
     private void addNewBuffer()
     {
         finishLastBuffer();
-        currentBuffer = pool.acquire();
-        buffers.add(currentBuffer);
+        currentBuffer = ownedBufferList.acquireBuffer();
     }
 
     public void finishLastBuffer()
