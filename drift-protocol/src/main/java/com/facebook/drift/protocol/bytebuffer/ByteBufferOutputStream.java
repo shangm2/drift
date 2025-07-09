@@ -61,7 +61,7 @@ public class ByteBufferOutputStream
 
             int bytesToWrite = Math.min(remaining, currentBuffer.remaining());
 
-            System.out.println(format("===> ready to write %d bytes with remaining %d and buffer remaining %d", bytesToWrite, remaining, currentBuffer.remaining()));
+            System.out.println(format("===> ready to write %d bytes with remaining %d and buffer remaining %d, id: %s. Position %d, limit: %d, capacity: %d", bytesToWrite, remaining, currentBuffer.remaining(), System.identityHashCode(currentBuffer), currentBuffer.position(), currentBuffer.limit(), currentBuffer.capacity()));
             currentBuffer.put(b, offset, bytesToWrite);
 
             offset += bytesToWrite;

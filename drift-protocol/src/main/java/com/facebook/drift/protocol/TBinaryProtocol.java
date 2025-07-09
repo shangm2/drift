@@ -457,17 +457,18 @@ public class TBinaryProtocol
             try {
                 transport.read(buffer.array(), buffer.arrayOffset(), bytesToRead);
                 buffer.position(bytesToRead);
+                buffer.limit(bytesToRead);
                 buffer.flip();
 
                 ByteBuffer duplicate = buffer.duplicate();
-                System.out.println("=====> position before reading: " + duplicate.position());
+                System.out.println(format("=====> duplicate position before reading: %d, limit: %d", duplicate.position(), duplicate.limit()));
 
                 StringBuilder sb = new StringBuilder();
                 while (duplicate.hasRemaining()) {
                     byte b = duplicate.get();
                     sb.append(String.format("%02X", b & 0xFF));
                 }
-                System.out.println("=====> position after reading: " + duplicate.position() + ", and data: " + sb);
+                System.out.println(format("=====> duplicate position after reading: %d, limit: %d, with result: %s", duplicate.position(), duplicate.limit(), sb));
 
                 buffers.add(buffer);
                 remaining -= bytesToRead;
