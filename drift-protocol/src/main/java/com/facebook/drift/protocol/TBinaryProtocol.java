@@ -16,8 +16,12 @@
 package com.facebook.drift.protocol;
 
 import com.facebook.drift.TException;
+import com.facebook.drift.protocol.bytebuffer.BufferPool;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import static com.facebook.drift.protocol.TProtocolUtil.readAllInBatches;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -36,7 +40,6 @@ public class TBinaryProtocol
         implements TProtocol
 {
     private static final TStruct ANONYMOUS_STRUCT = new TStruct("");
-
     protected static final int VERSION_MASK = 0xffff0000;
     protected static final int VERSION_1 = 0x80010000;
 
@@ -208,6 +211,29 @@ public class TBinaryProtocol
         int length = value.limit() - value.position();
         writeI32(length);
         transport.write(value.array(), value.position() + value.arrayOffset(), length);
+    }
+
+    @Override
+    public void writeBinaryFromBufferList(List<ByteBuffer> buffers, BufferPool pool)
+            throws TException
+    {
+        try {
+            int size = 0;
+            for (ByteBuffer buffer : buffers) {
+                size += buffer.remaining();
+            }
+
+            writeI32(size);
+            for (ByteBuffer buffer : buffers) {
+                ByteBuffer duplicate = buffer.duplicate();
+                transport.write(duplicate.array(), duplicate.arrayOffset() + duplicate.position(), duplicate.remaining());
+            }
+        }
+        finally {
+            for (ByteBuffer buffer : buffers) {
+                pool.release(buffer);
+            }
+        }
     }
 
     /**
@@ -402,6 +428,34 @@ public class TBinaryProtocol
         checkArgument((buf.length - offset) >= size, format("Binary is too large to be read into buffer: binary size: %s, buffer size: %s, buffer offset: %s", size, buf.length, offset));
 
         return readAllInBatches(transport, buf, offset, size);
+    }
+
+    @Override
+    public List<ByteBuffer> readBinaryToBufferList(BufferPool pool)
+            throws TException
+    {
+        int size = checkSize(readI32());
+
+        if (size == 0) {
+            return Collections.emptyList();
+        }
+
+        List<ByteBuffer> buffers = new ArrayList<>();
+        int remaining = size;
+
+        while (remaining > 0) {
+            ByteBuffer buffer = pool.acquire();
+            int bytesToRead = Math.min(remaining, pool.getBufferSize());
+            buffer.clear();
+
+            transport.read(buffer.array(), buffer.arrayOffset() + buffer.position(), bytesToRead);
+            buffer.position(buffer.position() + bytesToRead);
+            buffer.flip();
+
+            buffers.add(buffer);
+            remaining -= bytesToRead;
+        }
+        return buffers;
     }
 
     private static int checkSize(int length)
