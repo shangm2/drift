@@ -15,27 +15,25 @@
  */
 package com.facebook.drift.protocol.bytebuffer;
 
-import com.facebook.drift.buffer.BufferPool;
-import com.facebook.drift.buffer.OwnedBufferList;
+import com.facebook.drift.buffer.ByteBufferList;
+import com.facebook.drift.buffer.ByteBufferPool;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
-import static java.lang.String.format;
-
 public class ByteBufferOutputStream
         extends OutputStream
 {
-    private final BufferPool pool;
-    private final OwnedBufferList ownedBufferList;
+    private final ByteBufferPool pool;
+    private final ByteBufferList byteBufferList;
     private ByteBuffer currentBuffer;
 
-    public ByteBufferOutputStream(BufferPool pool, OwnedBufferList ownedBufferList)
+    public ByteBufferOutputStream(ByteBufferPool pool, ByteBufferList byteBufferList)
     {
         this.pool = pool;
-        this.ownedBufferList = ownedBufferList;
-        this.currentBuffer = ownedBufferList.acquireBuffer();
+        this.byteBufferList = byteBufferList;
+        this.currentBuffer = byteBufferList.acquireBuffer();
     }
 
     @Override
@@ -61,8 +59,6 @@ public class ByteBufferOutputStream
             }
 
             int bytesToWrite = Math.min(remaining, currentBuffer.remaining());
-
-            System.out.println(format("===> ready to write %d bytes with remaining %d and buffer remaining %d, id: %s. Position %d, limit: %d, capacity: %d", bytesToWrite, remaining, currentBuffer.remaining(), System.identityHashCode(currentBuffer), currentBuffer.position(), currentBuffer.limit(), currentBuffer.capacity()));
             currentBuffer.put(b, offset, bytesToWrite);
 
             offset += bytesToWrite;
@@ -73,7 +69,7 @@ public class ByteBufferOutputStream
     private void addNewBuffer()
     {
         finishLastBuffer();
-        currentBuffer = ownedBufferList.acquireBuffer();
+        currentBuffer = byteBufferList.acquireBuffer();
     }
 
     public void finishLastBuffer()

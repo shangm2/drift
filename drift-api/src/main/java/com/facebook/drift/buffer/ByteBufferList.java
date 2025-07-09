@@ -20,23 +20,22 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class OwnedBufferList
-        implements AutoCloseable
+public class ByteBufferList
 {
-    private final List<BufferPool.OwnedBuffer> ownedBuffers = new ArrayList<>();
+    private final List<ByteBufferPool.ReusableByteBuffer> reusableByteBuffers = new ArrayList<>();
     private final List<ByteBuffer> buffers = new ArrayList<>();
-    private final BufferPool pool;
+    private final ByteBufferPool pool;
 
-    public OwnedBufferList(BufferPool pool)
+    public ByteBufferList(ByteBufferPool pool)
     {
         this.pool = pool;
     }
 
     public ByteBuffer acquireBuffer()
     {
-        BufferPool.OwnedBuffer ownedBuffer = pool.acquireOwned();
-        ByteBuffer buffer = ownedBuffer.getBuffer();
-        ownedBuffers.add(ownedBuffer);
+        ByteBufferPool.ReusableByteBuffer reusableByteBuffer = pool.acquireOwned();
+        ByteBuffer buffer = reusableByteBuffer.getBuffer();
+        reusableByteBuffers.add(reusableByteBuffer);
         buffers.add(buffer);
         return buffer;
     }
@@ -46,14 +45,17 @@ public class OwnedBufferList
         return Collections.unmodifiableList(buffers);
     }
 
-    @Override
     public void close()
-            throws Exception
     {
-        for (BufferPool.OwnedBuffer ownedBuffer : ownedBuffers) {
-            ownedBuffer.close();
+        try {
+            for (ByteBufferPool.ReusableByteBuffer reusableByteBuffer : reusableByteBuffers) {
+                reusableByteBuffer.close();
+            }
+            reusableByteBuffers.clear();
+            buffers.clear();
         }
-        ownedBuffers.clear();
-        buffers.clear();
+        catch (Exception e) {
+            throw new RuntimeException("Fail to close owned buffer list", e);
+        }
     }
 }

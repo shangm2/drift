@@ -16,8 +16,8 @@
 package com.facebook.drift.protocol;
 
 import com.facebook.drift.TException;
-import com.facebook.drift.buffer.BufferPool;
-import com.facebook.drift.buffer.OwnedBufferList;
+import com.facebook.drift.buffer.ByteBufferList;
+import com.facebook.drift.buffer.ByteBufferPool;
 
 import java.nio.ByteBuffer;
 
@@ -89,9 +89,9 @@ public interface TProtocolReader
     int readBinary(byte[] buf, int offset)
             throws TException;
 
-    default OwnedBufferList readBinaryToBufferList(BufferPool pool)
+    default ByteBufferList readBinaryToBufferList(ByteBufferPool pool)
             throws TException
     {
-        return new OwnedBufferList(pool);
+        return new ByteBufferList(pool);
     }
 }

@@ -15,8 +15,8 @@
  */
 package com.facebook.drift.protocol.bytebuffer;
 
-import com.facebook.drift.buffer.BufferPool;
-import com.facebook.drift.buffer.OwnedBufferList;
+import com.facebook.drift.buffer.ByteBufferList;
+import com.facebook.drift.buffer.ByteBufferPool;
 import com.facebook.drift.protocol.TTransport;
 import com.facebook.drift.protocol.TTransportException;
 
@@ -27,9 +27,9 @@ public class ByteBufferOutputTransport
 {
     private final ByteBufferOutputStream outputStream;
 
-    public ByteBufferOutputTransport(BufferPool pool, OwnedBufferList ownedBufferList)
+    public ByteBufferOutputTransport(ByteBufferPool pool, ByteBufferList byteBufferList)
     {
-        outputStream = new ByteBufferOutputStream(pool, ownedBufferList);
+        outputStream = new ByteBufferOutputStream(pool, byteBufferList);
     }
 
     @Override

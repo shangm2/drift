@@ -15,7 +15,7 @@
  */
 package com.facebook.drift.protocol.bytebuffer;
 
-import com.facebook.drift.buffer.OwnedBufferList;
+import com.facebook.drift.buffer.ByteBufferList;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,15 +25,15 @@ import java.util.List;
 public class ByteBufferInputStream
         extends InputStream
 {
-    private final OwnedBufferList ownedBufferList;
+    private final ByteBufferList byteBufferList;
     private final List<ByteBuffer> bufferListView;
     private int currentBufferIndex;
     private ByteBuffer currentBuffer;
 
-    public ByteBufferInputStream(OwnedBufferList ownedBufferList)
+    public ByteBufferInputStream(ByteBufferList byteBufferList)
     {
-        this.ownedBufferList = ownedBufferList;
-        this.bufferListView = ownedBufferList.getBuffers();
+        this.byteBufferList = byteBufferList;
+        this.bufferListView = byteBufferList.getBuffers();
         this.currentBufferIndex = 0;
         this.currentBuffer = bufferListView.isEmpty() ? null : bufferListView.get(currentBufferIndex);
     }

@@ -19,7 +19,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class BufferPool
+public class ByteBufferPool
 {
     private static final int DEFAULT_BUFFER_SIZE = 4096; // 4KB
     private static final int DEFAULT_BUFFER_COUNT = 10 * 1024 * 1024; // 40GB max pool size
@@ -27,25 +27,25 @@ public class BufferPool
     private final int bufferSize;
     private final int maxCount;
 
-    public BufferPool()
+    public ByteBufferPool()
     {
         this(DEFAULT_BUFFER_SIZE, DEFAULT_BUFFER_COUNT);
     }
 
-    public BufferPool(int bufferSize, int maxCount)
+    public ByteBufferPool(int bufferSize, int maxCount)
     {
         this.bufferSize = bufferSize;
         this.maxCount = maxCount;
     }
 
-    public static class OwnedBuffer
+    public static class ReusableByteBuffer
             implements AutoCloseable
     {
         private final ByteBuffer buffer;
-        private final BufferPool pool;
+        private final ByteBufferPool pool;
         private final AtomicBoolean released = new AtomicBoolean(false);
 
-        private OwnedBuffer(ByteBuffer buffer, BufferPool pool)
+        private ReusableByteBuffer(ByteBuffer buffer, ByteBufferPool pool)
         {
             this.buffer = buffer;
             this.pool = pool;
@@ -64,7 +64,7 @@ public class BufferPool
             if (released.compareAndSet(false, true)) {
                 pool.releaseInternal(buffer);
             }
-            throw new IllegalStateException("Buffer has been released before.");
+//            throw new IllegalStateException("Buffer has been released before.");
         }
 
         @Override
@@ -75,7 +75,7 @@ public class BufferPool
         }
     }
 
-    public OwnedBuffer acquireOwned()
+    public ReusableByteBuffer acquireOwned()
     {
         ByteBuffer buffer = pool.poll();
         if (buffer == null) {
@@ -91,7 +91,7 @@ public class BufferPool
             }
         }
 
-        return new OwnedBuffer(buffer, this);
+        return new ReusableByteBuffer(buffer, this);
     }
 
     private void releaseInternal(ByteBuffer buffer)

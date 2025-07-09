@@ -16,8 +16,8 @@
 package com.facebook.drift.protocol;
 
 import com.facebook.drift.TException;
-import com.facebook.drift.buffer.BufferPool;
-import com.facebook.drift.buffer.OwnedBufferList;
+import com.facebook.drift.buffer.ByteBufferList;
+import com.facebook.drift.buffer.ByteBufferPool;
 
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -213,17 +213,15 @@ public class TBinaryProtocol
     }
 
     @Override
-    public void writeBinaryFromBufferList(OwnedBufferList ownedBufferList)
+    public void writeBinaryFromBufferList(ByteBufferList byteBufferList)
             throws TException
     {
-        List<ByteBuffer> buffersView = ownedBufferList.getBuffers();
+        List<ByteBuffer> buffersView = byteBufferList.getBuffers();
 
         int size = 0;
         for (ByteBuffer buffer : buffersView) {
-            System.out.println(format("=====> writeBinaryFromBufferList, position %d, limit %d", buffer.position(), buffer.limit()));
             size += buffer.remaining();
         }
-        System.out.println("=====> write i32: " + size);
         writeI32(size);
 
         for (ByteBuffer buffer : buffersView) {
@@ -427,23 +425,19 @@ public class TBinaryProtocol
     }
 
     @Override
-    public OwnedBufferList readBinaryToBufferList(BufferPool pool)
+    public ByteBufferList readBinaryToBufferList(ByteBufferPool pool)
             throws TException
     {
-        System.out.println("======> calling readBinaryToBufferList");
         int size = checkSize(readI32());
-        System.out.println("=====> read i32: " + size);
-
-        OwnedBufferList ownedBufferList = new OwnedBufferList(pool);
+        ByteBufferList byteBufferList = new ByteBufferList(pool);
         if (size == 0) {
-            return ownedBufferList;
+            return byteBufferList;
         }
 
         int remaining = size;
 
         while (remaining > 0) {
-            ByteBuffer buffer = ownedBufferList.acquireBuffer();
-            System.out.println("=====> new pool remaining: " + buffer.remaining());
+            ByteBuffer buffer = byteBufferList.acquireBuffer();
             int bytesToRead = Math.min(remaining, buffer.remaining());
 
             try {
@@ -452,28 +446,13 @@ public class TBinaryProtocol
                 buffer.limit(bytesToRead);
                 buffer.flip();
 
-                ByteBuffer duplicate = buffer.duplicate();
-                System.out.println(format("=====> duplicate position before reading: %d, limit: %d", duplicate.position(), duplicate.limit()));
-
-                StringBuilder sb = new StringBuilder();
-                while (duplicate.hasRemaining()) {
-                    byte b = duplicate.get();
-                    sb.append(String.format("%02X", b & 0xFF));
-                }
-                System.out.println(format("=====> duplicate position after reading: %d, limit: %d, with result: %s", duplicate.position(), duplicate.limit(), sb));
                 remaining -= bytesToRead;
             }
             catch (Exception e) {
-                try {
-                    ownedBufferList.close();
-                }
-                catch (Exception e2) {
-                    throw new TProtocolException("Error reading binary data", e);
-                }
-                throw new TProtocolException("Error reading binary data", e);
+                byteBufferList.close();
             }
         }
-        return ownedBufferList;
+        return byteBufferList;
     }
 
     private static int checkSize(int length)
