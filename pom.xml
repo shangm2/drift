@@ -65,6 +65,12 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
+                <groupId>org.jctools</groupId>
+                <artifactId>jctools-core</artifactId>
+                <version>4.0.3</version>
+            </dependency>
+
+            <dependency>
                 <groupId>com.facebook.drift</groupId>
                 <artifactId>drift-api</artifactId>
                 <version>${project.version}</version>
