@@ -16,7 +16,6 @@
 package com.facebook.drift.protocol;
 
 import com.facebook.drift.TException;
-import com.facebook.drift.protocol.bytebuffer.BufferPool;
 
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -89,28 +88,21 @@ public interface TProtocolWriter
     void writeBinary(ByteBuffer value)
             throws TException;
 
-    default void writeBinaryFromBufferList(List<ByteBuffer> buffers, BufferPool pool)
+    default void writeBinaryFromBufferList(List<ByteBuffer> buffers)
             throws TException
     {
         if (buffers == null || buffers.isEmpty()) {
             throw new TException("Buffer list is null or empty");
         }
-        try {
-            int size = 0;
-            for (ByteBuffer buffer : buffers) {
-                size += buffer.remaining();
-            }
-
-            writeI32(size);
-            for (ByteBuffer buffer : buffers) {
-                ByteBuffer duplicate = buffer.duplicate();
-                writeBinary(duplicate);
-            }
+        int size = 0;
+        for (ByteBuffer buffer : buffers) {
+            size += buffer.remaining();
         }
-        finally {
-            for (ByteBuffer buffer : buffers) {
-                pool.release(buffer);
-            }
+
+        writeI32(size);
+        for (ByteBuffer buffer : buffers) {
+            ByteBuffer duplicate = buffer.duplicate();
+            writeBinary(duplicate);
         }
     }
 }

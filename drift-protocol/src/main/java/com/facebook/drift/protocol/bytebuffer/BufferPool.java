@@ -17,7 +17,6 @@ package com.facebook.drift.protocol.bytebuffer;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class BufferPool
 {
@@ -25,7 +24,6 @@ public class BufferPool
     private static final int DEFAULT_BUFFER_COUNT = 10 * 1024 * 1024; // 40GB max pool size
     private final ConcurrentLinkedQueue<ByteBuffer> pool = new ConcurrentLinkedQueue<>();
     private final int bufferSize;
-    private final AtomicInteger counter = new AtomicInteger();
     private final int maxCount;
 
     public BufferPool()
@@ -44,7 +42,6 @@ public class BufferPool
         ByteBuffer buffer = pool.poll();
         if (buffer == null) {
             buffer = ByteBuffer.allocate(bufferSize);
-            counter.incrementAndGet();
         }
         buffer.clear();
         return buffer;
@@ -53,14 +50,21 @@ public class BufferPool
     public void release(ByteBuffer buffer)
     {
         // We only reuse buffer with the same size
-        if (buffer.capacity() == bufferSize && counter.get() < maxCount) {
+        if (buffer.capacity() == bufferSize) {
             buffer.clear();
-            pool.offer(buffer);
+            if (pool.size() < maxCount) {
+                pool.offer(buffer);
+            }
         }
     }
 
     public int getBufferSize()
     {
         return bufferSize;
+    }
+
+    public int getCount()
+    {
+        return pool.size();
     }
 }

@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 
+import static java.lang.String.format;
+
 public class ByteBufferInputTransport
         implements TTransport
 {
@@ -39,7 +41,7 @@ public class ByteBufferInputTransport
         try {
             int bytesRead = inputStream.read(buf, off, len);
             if (bytesRead < len) {
-                throw new TTransportException("Not enough bytes to read");
+                throw new TTransportException(format("Not enough bytes to read, read %s bytes but need %s bytes", bytesRead, len));
             }
         }
         catch (IOException e) {

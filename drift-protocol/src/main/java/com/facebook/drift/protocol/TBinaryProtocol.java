@@ -214,25 +214,18 @@ public class TBinaryProtocol
     }
 
     @Override
-    public void writeBinaryFromBufferList(List<ByteBuffer> buffers, BufferPool pool)
+    public void writeBinaryFromBufferList(List<ByteBuffer> buffers)
             throws TException
     {
-        try {
-            int size = 0;
-            for (ByteBuffer buffer : buffers) {
-                size += buffer.remaining();
-            }
-
-            writeI32(size);
-            for (ByteBuffer buffer : buffers) {
-                ByteBuffer duplicate = buffer.duplicate();
-                transport.write(duplicate.array(), duplicate.arrayOffset() + duplicate.position(), duplicate.remaining());
-            }
+        int size = 0;
+        for (ByteBuffer buffer : buffers) {
+            size += buffer.remaining();
         }
-        finally {
-            for (ByteBuffer buffer : buffers) {
-                pool.release(buffer);
-            }
+
+        writeI32(size);
+        for (ByteBuffer buffer : buffers) {
+            ByteBuffer duplicate = buffer.duplicate();
+            transport.write(duplicate.array(), duplicate.arrayOffset() + duplicate.position(), duplicate.remaining());
         }
     }
 
