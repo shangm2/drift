@@ -20,6 +20,8 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.List;
 
+import static java.lang.String.format;
+
 public class ByteBufferOutputStream
         extends OutputStream
 {
@@ -58,6 +60,8 @@ public class ByteBufferOutputStream
             }
 
             int bytesToWrite = Math.min(remaining, currentBuffer.remaining());
+
+            System.out.println(format("===> ready to write %d bytes with remaining %d and buffer remaining %d", bytesToWrite, remaining, currentBuffer.remaining()));
             currentBuffer.put(b, offset, bytesToWrite);
 
             offset += bytesToWrite;

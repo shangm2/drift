@@ -66,7 +66,7 @@ public class ByteBufferInputStream
             if (!currentBuffer.hasRemaining()) {
                 advanceBuffer();
                 if (currentBuffer == null) {
-                    return totalBytesRead > 0 ? totalBytesRead : -1;
+                    return totalBytesRead > 0 ? totalBytesRead : -2;
                 }
             }
 
@@ -77,7 +77,7 @@ public class ByteBufferInputStream
             bytesRemaining -= bytesToRead;
             destOffset += bytesToRead;
         }
-        return totalBytesRead > 0 ? totalBytesRead : -1;
+        return totalBytesRead > 0 ? totalBytesRead : -3;
     }
 
     @Override

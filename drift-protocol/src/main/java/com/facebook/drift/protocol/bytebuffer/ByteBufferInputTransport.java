@@ -40,6 +40,13 @@ public class ByteBufferInputTransport
     {
         try {
             int bytesRead = inputStream.read(buf, off, len);
+
+            if (bytesRead < 0) {
+                if (len > 0) {
+                    throw new TTransportException("End of stream reached when trying to read " + len + " bytes, but gets " + bytesRead + " bytes");
+                }
+                return;
+            }
             if (bytesRead < len) {
                 throw new TTransportException(format("Not enough bytes to read, read %s bytes but need %s bytes", bytesRead, len));
             }

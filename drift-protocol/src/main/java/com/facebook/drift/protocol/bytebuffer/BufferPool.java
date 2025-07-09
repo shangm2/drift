@@ -43,7 +43,15 @@ public class BufferPool
         if (buffer == null) {
             buffer = ByteBuffer.allocate(bufferSize);
         }
-        buffer.clear();
+        else {
+            for (int i = 0; i < bufferSize; i++) {
+                buffer.put(i, (byte) 0);
+                buffer.limit(buffer.capacity());
+                buffer.position(0);
+                buffer.clear();
+            }
+        }
+
         return buffer;
     }
 
@@ -52,6 +60,9 @@ public class BufferPool
         // We only reuse buffer with the same size
         if (buffer.capacity() == bufferSize) {
             buffer.clear();
+            for (int i = 0; i < buffer.capacity(); i++) {
+                buffer.put(i, (byte) 0);
+            }
             if (pool.size() < maxCount) {
                 pool.offer(buffer);
             }

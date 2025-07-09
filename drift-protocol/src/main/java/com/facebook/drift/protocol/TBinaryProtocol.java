@@ -219,10 +219,21 @@ public class TBinaryProtocol
     {
         int size = 0;
         for (ByteBuffer buffer : buffers) {
+            System.out.println(format("=====> writeBinaryFromBufferList, position %d, limit %d", buffer.position(), buffer.limit()));
             size += buffer.remaining();
         }
+        System.out.println("=====> write i32: " + size);
 
+        if (size > 3000) {
+            size = 0;
+            System.out.println("=====> buffer size " + buffers.size());
+            for (ByteBuffer buffer : buffers) {
+                size += buffer.remaining();
+            }
+            System.out.println("=====> write i32 second try: " + size);
+        }
         writeI32(size);
+
         for (ByteBuffer buffer : buffers) {
             ByteBuffer duplicate = buffer.duplicate();
             transport.write(duplicate.array(), duplicate.arrayOffset() + duplicate.position(), duplicate.remaining());
@@ -427,7 +438,9 @@ public class TBinaryProtocol
     public List<ByteBuffer> readBinaryToBufferList(BufferPool pool)
             throws TException
     {
+        System.out.println("======> calling readBinaryToBufferList");
         int size = checkSize(readI32());
+        System.out.println("=====> read i32: " + size);
 
         if (size == 0) {
             return Collections.emptyList();
@@ -438,15 +451,33 @@ public class TBinaryProtocol
 
         while (remaining > 0) {
             ByteBuffer buffer = pool.acquire();
-            int bytesToRead = Math.min(remaining, pool.getBufferSize());
-            buffer.clear();
+            System.out.println("=====> new pool remaining: " + buffer.remaining());
+            int bytesToRead = Math.min(remaining, buffer.remaining());
 
-            transport.read(buffer.array(), buffer.arrayOffset() + buffer.position(), bytesToRead);
-            buffer.position(buffer.position() + bytesToRead);
-            buffer.flip();
+            try {
+                transport.read(buffer.array(), buffer.arrayOffset(), bytesToRead);
+                buffer.position(bytesToRead);
+                buffer.flip();
 
-            buffers.add(buffer);
-            remaining -= bytesToRead;
+                ByteBuffer duplicate = buffer.duplicate();
+                System.out.println("=====> position before reading: " + duplicate.position());
+
+                StringBuilder sb = new StringBuilder();
+                while (duplicate.hasRemaining()) {
+                    byte b = duplicate.get();
+                    sb.append(String.format("%02X", b & 0xFF));
+                }
+                System.out.println("=====> position after reading: " + duplicate.position() + ", and data: " + sb);
+
+                buffers.add(buffer);
+                remaining -= bytesToRead;
+            }
+            catch (Exception e) {
+                for (ByteBuffer buf : buffers) {
+                    pool.release(buf);
+                }
+                throw new TProtocolException("Error reading binary data", e);
+            }
         }
         return buffers;
     }
