@@ -16,8 +16,10 @@
 package com.facebook.drift.protocol;
 
 import com.facebook.drift.TException;
+import com.facebook.drift.buffer.ByteBufferPool;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 
 public interface TProtocolWriter
 {
@@ -86,4 +88,10 @@ public interface TProtocolWriter
 
     void writeBinary(ByteBuffer value)
             throws TException;
+
+    default void writeBinaryFromBufferList(List<ByteBufferPool.ReusableByteBuffer> byteBufferList)
+            throws TException
+    {
+        throw new UnsupportedOperationException("writeBinaryFromBufferList is not supported");
+    }
 }

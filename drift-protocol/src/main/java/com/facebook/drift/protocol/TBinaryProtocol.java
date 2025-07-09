@@ -16,8 +16,12 @@
 package com.facebook.drift.protocol;
 
 import com.facebook.drift.TException;
+import com.facebook.drift.buffer.ByteBufferPool;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import static com.facebook.drift.protocol.TProtocolUtil.readAllInBatches;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -36,7 +40,6 @@ public class TBinaryProtocol
         implements TProtocol
 {
     private static final TStruct ANONYMOUS_STRUCT = new TStruct("");
-
     protected static final int VERSION_MASK = 0xffff0000;
     protected static final int VERSION_1 = 0x80010000;
 
@@ -208,6 +211,21 @@ public class TBinaryProtocol
         int length = value.limit() - value.position();
         writeI32(length);
         transport.write(value.array(), value.position() + value.arrayOffset(), length);
+    }
+
+    @Override
+    public void writeBinaryFromBufferList(List<ByteBufferPool.ReusableByteBuffer> byteBufferList)
+            throws TException
+    {
+        int size = 0;
+        for (ByteBufferPool.ReusableByteBuffer byteBuffer : byteBufferList) {
+            size += byteBuffer.getBufferRemaining();
+        }
+
+        writeI32(size);
+        for (ByteBufferPool.ReusableByteBuffer reusableByteBuffer : byteBufferList) {
+            transport.write(reusableByteBuffer.getArray(), reusableByteBuffer.getArrayOffset() + reusableByteBuffer.getPosition(), reusableByteBuffer.getBufferRemaining());
+        }
     }
 
     /**
@@ -402,6 +420,34 @@ public class TBinaryProtocol
         checkArgument((buf.length - offset) >= size, format("Binary is too large to be read into buffer: binary size: %s, buffer size: %s, buffer offset: %s", size, buf.length, offset));
 
         return readAllInBatches(transport, buf, offset, size);
+    }
+
+    @Override
+    public List<ByteBufferPool.ReusableByteBuffer> readBinaryToBufferList(ByteBufferPool pool)
+            throws TException
+    {
+        int size = checkSize(readI32());
+        if (size == 0) {
+            return Collections.emptyList();
+        }
+
+        List<ByteBufferPool.ReusableByteBuffer> byteBufferList = new ArrayList<>();
+
+        int remaining = size;
+
+        while (remaining > 0) {
+            ByteBufferPool.ReusableByteBuffer byteBuffer = pool.acquire();
+            byteBufferList.add(byteBuffer);
+            int bytesToRead = Math.min(remaining, byteBuffer.getBufferRemaining());
+
+            transport.read(byteBuffer.getArray(), byteBuffer.getArrayOffset(), bytesToRead);
+            byteBuffer.setPosition(bytesToRead);
+            byteBuffer.setLimit(bytesToRead);
+            byteBuffer.flip();
+
+            remaining -= bytesToRead;
+        }
+        return byteBufferList;
     }
 
     private static int checkSize(int length)
