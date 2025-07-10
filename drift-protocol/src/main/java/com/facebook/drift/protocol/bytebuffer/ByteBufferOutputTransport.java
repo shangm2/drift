@@ -15,19 +15,19 @@
  */
 package com.facebook.drift.protocol.bytebuffer;
 
-import com.facebook.drift.buffer.ByteBufferList;
 import com.facebook.drift.buffer.ByteBufferPool;
 import com.facebook.drift.protocol.TTransport;
 import com.facebook.drift.protocol.TTransportException;
 
 import java.io.IOException;
+import java.util.List;
 
 public class ByteBufferOutputTransport
         implements TTransport
 {
     private final ByteBufferOutputStream outputStream;
 
-    public ByteBufferOutputTransport(ByteBufferPool pool, ByteBufferList byteBufferList)
+    public ByteBufferOutputTransport(ByteBufferPool pool, List<ByteBufferPool.ReusableByteBuffer> byteBufferList)
     {
         outputStream = new ByteBufferOutputStream(pool, byteBufferList);
     }

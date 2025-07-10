@@ -16,10 +16,11 @@
 package com.facebook.drift.protocol;
 
 import com.facebook.drift.TException;
-import com.facebook.drift.buffer.ByteBufferList;
 import com.facebook.drift.buffer.ByteBufferPool;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static com.facebook.drift.protocol.TProtocolUtil.readAllInBatches;
@@ -213,19 +214,17 @@ public class TBinaryProtocol
     }
 
     @Override
-    public void writeBinaryFromBufferList(ByteBufferList byteBufferList)
+    public void writeBinaryFromBufferList(List<ByteBufferPool.ReusableByteBuffer> byteBufferList)
             throws TException
     {
-        List<ByteBuffer> buffersView = byteBufferList.getBuffers();
-
         int size = 0;
-        for (ByteBuffer buffer : buffersView) {
-            size += buffer.remaining();
+        for (ByteBufferPool.ReusableByteBuffer byteBuffer : byteBufferList) {
+            size += byteBuffer.getBuffer().remaining();
         }
-        writeI32(size);
 
-        for (ByteBuffer buffer : buffersView) {
-            ByteBuffer duplicate = buffer.duplicate();
+        writeI32(size);
+        for (ByteBufferPool.ReusableByteBuffer byteBuffer : byteBufferList) {
+            ByteBuffer duplicate = byteBuffer.getBuffer().duplicate();
             transport.write(duplicate.array(), duplicate.arrayOffset() + duplicate.position(), duplicate.remaining());
         }
     }
@@ -425,32 +424,30 @@ public class TBinaryProtocol
     }
 
     @Override
-    public ByteBufferList readBinaryToBufferList(ByteBufferPool pool)
+    public List<ByteBufferPool.ReusableByteBuffer> readBinaryToBufferList(ByteBufferPool pool)
             throws TException
     {
         int size = checkSize(readI32());
-        ByteBufferList byteBufferList = new ByteBufferList(pool);
         if (size == 0) {
-            return byteBufferList;
+            return Collections.emptyList();
         }
+
+        List<ByteBufferPool.ReusableByteBuffer> byteBufferList = new ArrayList<>();
 
         int remaining = size;
 
         while (remaining > 0) {
-            ByteBuffer buffer = byteBufferList.acquireBuffer();
+            ByteBufferPool.ReusableByteBuffer byteBuffer = pool.acquire();
+            byteBufferList.add(byteBuffer);
+            ByteBuffer buffer = byteBuffer.getBuffer();
             int bytesToRead = Math.min(remaining, buffer.remaining());
 
-            try {
-                transport.read(buffer.array(), buffer.arrayOffset(), bytesToRead);
-                buffer.position(bytesToRead);
-                buffer.limit(bytesToRead);
-                buffer.flip();
+            transport.read(buffer.array(), buffer.arrayOffset(), bytesToRead);
+            buffer.position(bytesToRead);
+            buffer.limit(bytesToRead);
+            buffer.flip();
 
-                remaining -= bytesToRead;
-            }
-            catch (Exception e) {
-                byteBufferList.close();
-            }
+            remaining -= bytesToRead;
         }
         return byteBufferList;
     }

@@ -15,27 +15,28 @@
  */
 package com.facebook.drift.protocol.bytebuffer;
 
-import com.facebook.drift.buffer.ByteBufferList;
+import com.facebook.drift.buffer.ByteBufferPool;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 
 public class ByteBufferInputStream
         extends InputStream
 {
-    private final ByteBufferList byteBufferList;
-    private final List<ByteBuffer> bufferListView;
+    private final List<ByteBuffer> buffers = new ArrayList<>();
     private int currentBufferIndex;
     private ByteBuffer currentBuffer;
 
-    public ByteBufferInputStream(ByteBufferList byteBufferList)
+    public ByteBufferInputStream(List<ByteBufferPool.ReusableByteBuffer> byteBufferList)
     {
-        this.byteBufferList = byteBufferList;
-        this.bufferListView = byteBufferList.getBuffers();
+        for (ByteBufferPool.ReusableByteBuffer buffer : byteBufferList) {
+            buffers.add(buffer.getBuffer());
+        }
         this.currentBufferIndex = 0;
-        this.currentBuffer = bufferListView.isEmpty() ? null : bufferListView.get(currentBufferIndex);
+        this.currentBuffer = buffers.isEmpty() ? null : buffers.get(currentBufferIndex);
     }
 
     @Override
@@ -92,8 +93,8 @@ public class ByteBufferInputStream
             return 0;
         }
         int available = currentBuffer.remaining();
-        for (int i = currentBufferIndex; i < bufferListView.size(); i++) {
-            available += bufferListView.get(i).remaining();
+        for (int i = currentBufferIndex; i < buffers.size(); i++) {
+            available += buffers.get(i).remaining();
         }
         return available;
     }
@@ -101,11 +102,11 @@ public class ByteBufferInputStream
     private void advanceBuffer()
     {
         currentBufferIndex++;
-        if (currentBufferIndex >= bufferListView.size()) {
+        if (currentBufferIndex >= buffers.size()) {
             currentBuffer = null;
         }
         else {
-            currentBuffer = bufferListView.get(currentBufferIndex);
+            currentBuffer = buffers.get(currentBufferIndex);
         }
     }
 }

@@ -38,14 +38,35 @@ public class ByteBufferPool
         this.maxCount = maxCount;
     }
 
-    public static class ReusableByteBuffer
-            implements AutoCloseable
+    public ReusableByteBuffer acquire()
     {
-        private final ByteBuffer buffer;
+        ByteBuffer buffer = pool.poll();
+        if (buffer == null) {
+            buffer = ByteBuffer.allocate(bufferSize);
+        }
+        buffer.clear();
+
+        return new ReusableByteBuffer(buffer, this);
+    }
+
+    private void release(ByteBuffer buffer)
+    {
+        // We only reuse buffer with the same size
+        if (buffer.capacity() == bufferSize) {
+            buffer.clear();
+            if (pool.size() < maxCount) {
+                pool.offer(buffer);
+            }
+        }
+    }
+
+    public static class ReusableByteBuffer
+    {
+        private ByteBuffer buffer;
         private final ByteBufferPool pool;
         private final AtomicBoolean released = new AtomicBoolean(false);
 
-        private ReusableByteBuffer(ByteBuffer buffer, ByteBufferPool pool)
+        public ReusableByteBuffer(ByteBuffer buffer, ByteBufferPool pool)
         {
             this.buffer = buffer;
             this.pool = pool;
@@ -62,58 +83,13 @@ public class ByteBufferPool
         public void release()
         {
             if (released.compareAndSet(false, true)) {
-                pool.releaseInternal(buffer);
-            }
-//            throw new IllegalStateException("Buffer has been released before.");
-        }
-
-        @Override
-        public void close()
-                throws Exception
-        {
-            release();
-        }
-    }
-
-    public ReusableByteBuffer acquireOwned()
-    {
-        ByteBuffer buffer = pool.poll();
-        if (buffer == null) {
-            buffer = ByteBuffer.allocate(bufferSize);
-        }
-        else {
-            // TODO: remove
-            for (int i = 0; i < bufferSize; i++) {
-                buffer.put(i, (byte) 0);
-                buffer.limit(buffer.capacity());
-                buffer.position(0);
-                buffer.clear();
-            }
-        }
-
-        return new ReusableByteBuffer(buffer, this);
-    }
-
-    private void releaseInternal(ByteBuffer buffer)
-    {
-        // We only reuse buffer with the same size
-        if (buffer.capacity() == bufferSize) {
-            buffer.clear();
-            for (int i = 0; i < buffer.capacity(); i++) {
-                buffer.put(i, (byte) 0);
-            }
-            if (pool.size() < maxCount) {
-                pool.offer(buffer);
+                pool.release(buffer);
+                buffer = null;
             }
         }
     }
 
-    public int getBufferSize()
-    {
-        return bufferSize;
-    }
-
-    public int getCount()
+    public int getSize()
     {
         return pool.size();
     }
