@@ -84,6 +84,16 @@
                     </exclusionPatterns>
                 </configuration>
             </plugin>
+            <!-- Pull in from new repo https://github.com/prestodb/airlift/blob/master/drift/drift-codec-utils/pom.xml -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <configuration>
+                    <ignoredNonTestScopedDependencies>
+                        <ignoredNonTestScopedDependency>com.facebook.drift:drift-api</ignoredNonTestScopedDependency>
+                    </ignoredNonTestScopedDependencies>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>
