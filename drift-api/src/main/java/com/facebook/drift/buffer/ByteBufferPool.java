@@ -29,6 +29,7 @@ public class ByteBufferPool
     private final int bufferSize;
     private final int maxCount;
     private final int id;
+    private final boolean useDirect;
     private final AtomicLong recycleCounting = new AtomicLong();
     private final AtomicLong reuseCounting = new AtomicLong();
     private final AtomicLong acquireCounting = new AtomicLong();
@@ -38,13 +39,19 @@ public class ByteBufferPool
 
     public ByteBufferPool()
     {
-        this(DEFAULT_BUFFER_SIZE, DEFAULT_BUFFER_COUNT);
+        this(DEFAULT_BUFFER_SIZE, DEFAULT_BUFFER_COUNT, false);
     }
 
     public ByteBufferPool(int bufferSize, int maxCount)
     {
+        this(bufferSize, maxCount, false);
+    }
+
+    public ByteBufferPool(int bufferSize, int maxCount, boolean useDirect)
+    {
         this.bufferSize = bufferSize;
         this.maxCount = maxCount;
+        this.useDirect = useDirect;
         this.id = idGenerator.incrementAndGet();
 
         System.out.println("===========> pre allocation");
@@ -100,7 +107,9 @@ public class ByteBufferPool
 
         public ReusableByteBuffer(int bufferSize, ByteBufferPool pool)
         {
-            this.buffer = ByteBuffer.allocate(bufferSize);
+            this.buffer = pool.useDirect ? 
+                ByteBuffer.allocateDirect(bufferSize) : 
+                ByteBuffer.allocate(bufferSize);
             this.pool = pool;
         }
 
@@ -207,11 +216,14 @@ public class ByteBufferPool
             buffer.flip();
         }
 
-        // Direct array access for performance-critical operations
+        // Direct array access for performance-critical operations (heap buffers only)
         public byte[] getArray()
         {
             if (Thread.currentThread() != ownerThread) {
                 throw new IllegalStateException("Buffer can only be accessed by the owning thread");
+            }
+            if (buffer.isDirect()) {
+                throw new UnsupportedOperationException("Direct buffers don't have backing arrays. Use DirectBufferUtil instead.");
             }
             return buffer.array();
         }
@@ -221,7 +233,28 @@ public class ByteBufferPool
             if (Thread.currentThread() != ownerThread) {
                 throw new IllegalStateException("Buffer can only be accessed by the owning thread");
             }
+            if (buffer.isDirect()) {
+                throw new UnsupportedOperationException("Direct buffers don't have backing arrays. Use DirectBufferUtil instead.");
+            }
             return buffer.arrayOffset();
+        }
+
+        // Check if this buffer is using direct memory
+        public boolean isDirect()
+        {
+            if (Thread.currentThread() != ownerThread) {
+                throw new IllegalStateException("Buffer can only be accessed by the owning thread");
+            }
+            return buffer.isDirect();
+        }
+
+        // Get the underlying ByteBuffer for use with DirectBufferUtil
+        public ByteBuffer getByteBuffer()
+        {
+            if (Thread.currentThread() != ownerThread) {
+                throw new IllegalStateException("Buffer can only be accessed by the owning thread");
+            }
+            return buffer;
         }
     }
 
