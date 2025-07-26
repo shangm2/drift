@@ -19,6 +19,9 @@ import com.facebook.drift.buffer.ByteBufferPool;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class ByteBufferInputStream
@@ -114,5 +117,85 @@ public class ByteBufferInputStream
         else {
             currentBuffer = buffers.get(currentBufferIndex);
         }
+    }
+
+    /**
+     * Read data directly into a ByteBuffer without intermediate copying.
+     * This method provides zero-copy performance when both source and destination
+     * support direct buffer operations.
+     * 
+     * @param destination the ByteBuffer to read into
+     * @return number of bytes read, or -1 if end of stream
+     * @throws IOException if read fails
+     */
+    public int readToByteBuffer(ByteBuffer destination) throws IOException
+    {
+        int totalBytesRead = 0;
+        
+        while (destination.hasRemaining() && currentBuffer != null) {
+            if (currentBuffer.hasNoRemaining()) {
+                advanceBuffer();
+                if (currentBuffer == null) {
+                    break;
+                }
+            }
+            
+            int bytesToRead = Math.min(destination.remaining(), currentBuffer.getBufferRemaining());
+            
+            // Use DirectBufferUtil for optimal buffer-to-buffer copying
+            DirectBufferUtil.copyBufferToBuffer(currentBuffer.getByteBuffer(), destination, bytesToRead);
+            
+            totalBytesRead += bytesToRead;
+        }
+        
+        return totalBytesRead > 0 ? totalBytesRead : -1;
+    }
+
+    /**
+     * Read data directly into a list of pooled ByteBuffers without intermediate copying.
+     * This method provides zero-copy performance for buffer pool operations.
+     * 
+     * @param pool the ByteBufferPool to acquire buffers from
+     * @param size the total number of bytes to read
+     * @return list of buffers containing the read data
+     * @throws IOException if read fails
+     */
+    public List<ByteBufferPool.ReusableByteBuffer> readToBufferList(ByteBufferPool pool, int size) throws IOException
+    {
+        if (size == 0) {
+            return Collections.emptyList();
+        }
+        
+        List<ByteBufferPool.ReusableByteBuffer> result = new ArrayList<>();
+        int remaining = size;
+        
+        while (remaining > 0 && currentBuffer != null) {
+            if (currentBuffer.hasNoRemaining()) {
+                advanceBuffer();
+                if (currentBuffer == null) {
+                    break;
+                }
+            }
+            
+            ByteBufferPool.ReusableByteBuffer targetBuffer = pool.acquire();
+            result.add(targetBuffer);
+            
+            int bytesToCopy = Math.min(remaining, 
+                                     Math.min(currentBuffer.getBufferRemaining(), 
+                                             targetBuffer.getBufferRemaining()));
+            
+            // Use DirectBufferUtil for optimal buffer-to-buffer copying
+            DirectBufferUtil.copyBufferToBuffer(currentBuffer.getByteBuffer(), 
+                                               targetBuffer.getByteBuffer(), bytesToCopy);
+            
+            // Update target buffer state
+            targetBuffer.setPosition(bytesToCopy);
+            targetBuffer.setLimit(bytesToCopy);
+            targetBuffer.flip();
+            
+            remaining -= bytesToCopy;
+        }
+        
+        return result;
     }
 }

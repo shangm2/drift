@@ -19,6 +19,7 @@ import com.facebook.drift.buffer.ByteBufferPool;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
@@ -99,5 +100,53 @@ public class ByteBufferOutputStream
             throws IOException
     {
         finishLastBuffer();
+    }
+
+    /**
+     * Write data from a ByteBuffer directly to the output stream without intermediate copying.
+     * This method provides zero-copy performance when both source and destination support
+     * direct buffer operations.
+     * 
+     * @param source the ByteBuffer to write from
+     * @throws IOException if write fails
+     */
+    public void writeFromByteBuffer(ByteBuffer source) throws IOException
+    {
+        while (source.hasRemaining()) {
+            if (currentBuffer.hasNoRemaining()) {
+                addNewBuffer();
+            }
+            
+            int bytesToCopy = Math.min(source.remaining(), currentBuffer.getBufferRemaining());
+            
+            // Use DirectBufferUtil for optimal buffer-to-buffer copying
+            DirectBufferUtil.copyBufferToBuffer(source, currentBuffer.getByteBuffer(), bytesToCopy);
+        }
+    }
+
+    /**
+     * Write data from a ReusableByteBuffer directly to the output stream without intermediate copying.
+     * This method provides zero-copy performance for buffer pool operations.
+     * 
+     * @param sourceBuffer the ReusableByteBuffer to write from
+     * @throws IOException if write fails
+     */
+    public void writeFromReusableByteBuffer(ByteBufferPool.ReusableByteBuffer sourceBuffer) throws IOException
+    {
+        ByteBuffer source = sourceBuffer.getByteBuffer();
+        int originalPosition = source.position();
+        int originalLimit = source.limit();
+        
+        // Set up source buffer for reading
+        source.position(sourceBuffer.getPosition());
+        source.limit(sourceBuffer.getPosition() + sourceBuffer.getBufferRemaining());
+        
+        try {
+            writeFromByteBuffer(source);
+        } finally {
+            // Restore original position and limit
+            source.position(originalPosition);
+            source.limit(originalLimit);
+        }
     }
 }

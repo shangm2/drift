@@ -15,26 +15,45 @@
  */
 package com.facebook.drift.protocol.bytebuffer;
 
-import sun.misc.Unsafe;
-
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 
 /**
  * Utility class for high-performance operations on direct ByteBuffers using Unsafe.
  * This avoids temporary array allocations when working with direct memory.
+ * Uses reflection to work around Java 9+ module system restrictions.
  */
 public final class DirectBufferUtil
 {
-    private static final Unsafe UNSAFE;
+    private static final Object UNSAFE;
+    private static final Method COPY_MEMORY_METHOD;
+    private static final Method PUT_BYTE_METHOD; 
+    private static final Method GET_BYTE_METHOD;
+    private static final Method ARRAY_BASE_OFFSET_METHOD;
     private static final long ARRAY_BYTE_BASE_OFFSET;
+    private static final Method GET_ADDRESS_METHOD;
 
     static {
         try {
-            Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
+            // Get Unsafe instance via reflection
+            Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
+            Field unsafeField = unsafeClass.getDeclaredField("theUnsafe");
             unsafeField.setAccessible(true);
-            UNSAFE = (Unsafe) unsafeField.get(null);
-            ARRAY_BYTE_BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
+            UNSAFE = unsafeField.get(null);
+
+            // Get Unsafe methods via reflection
+            COPY_MEMORY_METHOD = unsafeClass.getMethod("copyMemory", 
+                Object.class, long.class, Object.class, long.class, long.class);
+            PUT_BYTE_METHOD = unsafeClass.getMethod("putByte", long.class, byte.class);
+            GET_BYTE_METHOD = unsafeClass.getMethod("getByte", long.class);
+            ARRAY_BASE_OFFSET_METHOD = unsafeClass.getMethod("arrayBaseOffset", Class.class);
+            
+            ARRAY_BYTE_BASE_OFFSET = (Long) ARRAY_BASE_OFFSET_METHOD.invoke(UNSAFE, byte[].class);
+
+            // Get DirectBuffer.address() method via reflection
+            Class<?> directBufferClass = Class.forName("sun.nio.ch.DirectBuffer");
+            GET_ADDRESS_METHOD = directBufferClass.getMethod("address");
         }
         catch (Exception e) {
             throw new RuntimeException("Failed to initialize DirectBufferUtil", e);
@@ -51,7 +70,12 @@ public final class DirectBufferUtil
         if (!buffer.isDirect()) {
             throw new IllegalArgumentException("Buffer must be direct");
         }
-        return ((sun.nio.ch.DirectBuffer) buffer).address();
+        try {
+            return (Long) GET_ADDRESS_METHOD.invoke(buffer);
+        }
+        catch (Exception e) {
+            throw new RuntimeException("Failed to get direct buffer address", e);
+        }
     }
 
     /**
@@ -61,9 +85,14 @@ public final class DirectBufferUtil
     public static void putBytes(ByteBuffer buffer, byte[] src, int srcOffset, int length)
     {
         if (buffer.isDirect()) {
-            long address = getDirectBufferAddress(buffer) + buffer.position();
-            UNSAFE.copyMemory(src, ARRAY_BYTE_BASE_OFFSET + srcOffset, null, address, length);
-            buffer.position(buffer.position() + length);
+            try {
+                long address = getDirectBufferAddress(buffer) + buffer.position();
+                COPY_MEMORY_METHOD.invoke(UNSAFE, src, ARRAY_BYTE_BASE_OFFSET + srcOffset, null, address, (long) length);
+                buffer.position(buffer.position() + length);
+            }
+            catch (Exception e) {
+                throw new RuntimeException("Failed to copy bytes to direct buffer", e);
+            }
         }
         else {
             // Heap buffer - use direct array access for maximum performance
@@ -80,9 +109,14 @@ public final class DirectBufferUtil
     public static void getBytes(ByteBuffer buffer, byte[] dst, int dstOffset, int length)
     {
         if (buffer.isDirect()) {
-            long address = getDirectBufferAddress(buffer) + buffer.position();
-            UNSAFE.copyMemory(null, address, dst, ARRAY_BYTE_BASE_OFFSET + dstOffset, length);
-            buffer.position(buffer.position() + length);
+            try {
+                long address = getDirectBufferAddress(buffer) + buffer.position();
+                COPY_MEMORY_METHOD.invoke(UNSAFE, null, address, dst, ARRAY_BYTE_BASE_OFFSET + dstOffset, (long) length);
+                buffer.position(buffer.position() + length);
+            }
+            catch (Exception e) {
+                throw new RuntimeException("Failed to copy bytes from direct buffer", e);
+            }
         }
         else {
             // Heap buffer - use direct array access for maximum performance
@@ -98,9 +132,14 @@ public final class DirectBufferUtil
     public static void putByte(ByteBuffer buffer, byte value)
     {
         if (buffer.isDirect()) {
-            long address = getDirectBufferAddress(buffer) + buffer.position();
-            UNSAFE.putByte(address, value);
-            buffer.position(buffer.position() + 1);
+            try {
+                long address = getDirectBufferAddress(buffer) + buffer.position();
+                PUT_BYTE_METHOD.invoke(UNSAFE, address, value);
+                buffer.position(buffer.position() + 1);
+            }
+            catch (Exception e) {
+                throw new RuntimeException("Failed to put byte to direct buffer", e);
+            }
         }
         else {
             buffer.array()[buffer.arrayOffset() + buffer.position()] = value;
@@ -114,15 +153,60 @@ public final class DirectBufferUtil
     public static byte getByte(ByteBuffer buffer)
     {
         if (buffer.isDirect()) {
-            long address = getDirectBufferAddress(buffer) + buffer.position();
-            byte value = UNSAFE.getByte(address);
-            buffer.position(buffer.position() + 1);
-            return value;
+            try {
+                long address = getDirectBufferAddress(buffer) + buffer.position();
+                byte value = (Byte) GET_BYTE_METHOD.invoke(UNSAFE, address);
+                buffer.position(buffer.position() + 1);
+                return value;
+            }
+            catch (Exception e) {
+                throw new RuntimeException("Failed to get byte from direct buffer", e);
+            }
         }
         else {
             byte value = buffer.array()[buffer.arrayOffset() + buffer.position()];
             buffer.position(buffer.position() + 1);
             return value;
         }
+    }
+
+    /**
+     * Copy bytes from one ByteBuffer to another ByteBuffer without creating temporary arrays.
+     * Optimally handles all combinations: direct-to-direct, heap-to-heap, and mixed.
+     * 
+     * @param source the source ByteBuffer to copy from
+     * @param destination the destination ByteBuffer to copy to
+     * @param length the number of bytes to copy
+     */
+    public static void copyBufferToBuffer(ByteBuffer source, ByteBuffer destination, int length)
+    {
+        if (source.isDirect() && destination.isDirect()) {
+            // Both direct - use Unsafe memory copy for maximum performance
+            try {
+                long srcAddress = getDirectBufferAddress(source) + source.position();
+                long dstAddress = getDirectBufferAddress(destination) + destination.position();
+                COPY_MEMORY_METHOD.invoke(UNSAFE, null, srcAddress, null, dstAddress, (long) length);
+            }
+            catch (Exception e) {
+                throw new RuntimeException("Failed to copy between direct buffers", e);
+            }
+        }
+        else if (!source.isDirect() && !destination.isDirect()) {
+            // Both heap - use System.arraycopy for maximum performance
+            System.arraycopy(source.array(), source.arrayOffset() + source.position(),
+                           destination.array(), destination.arrayOffset() + destination.position(),
+                           length);
+        }
+        else {
+            // Mixed (one direct, one heap) - use existing methods for conversion
+            byte[] temp = new byte[length];
+            getBytes(source, temp, 0, length);
+            putBytes(destination, temp, 0, length);
+            return; // positions already updated by getBytes/putBytes
+        }
+        
+        // Update positions for direct paths (mixed path already handled above)
+        source.position(source.position() + length);
+        destination.position(destination.position() + length);
     }
 }

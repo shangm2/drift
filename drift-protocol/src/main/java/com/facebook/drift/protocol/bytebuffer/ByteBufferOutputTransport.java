@@ -20,10 +20,11 @@ import com.facebook.drift.protocol.TTransport;
 import com.facebook.drift.protocol.TTransportException;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.List;
 
 public class ByteBufferOutputTransport
-        implements TTransport
+        implements ByteBufferCapableTransport
 {
     private final ByteBufferOutputStream outputStream;
 
@@ -54,5 +55,43 @@ public class ByteBufferOutputTransport
     public void finish()
     {
         outputStream.finishLastBuffer();
+    }
+
+    // ByteBufferCapableTransport interface methods for zero-copy operations
+
+    @Override
+    public void write(ByteBuffer buffer) throws TTransportException
+    {
+        try {
+            outputStream.writeFromByteBuffer(buffer);
+        }
+        catch (IOException e) {
+            throw new TTransportException("Failed to write ByteBuffer", e);
+        }
+    }
+
+    @Override
+    public void write(List<ByteBufferPool.ReusableByteBuffer> bufferList) throws TTransportException
+    {
+        try {
+            for (ByteBufferPool.ReusableByteBuffer buffer : bufferList) {
+                outputStream.writeFromReusableByteBuffer(buffer);
+            }
+        }
+        catch (IOException e) {
+            throw new TTransportException("Failed to write buffer list", e);
+        }
+    }
+
+    @Override
+    public int read(ByteBuffer destination) throws TTransportException
+    {
+        throw new TTransportException("This is a write-only transport");
+    }
+
+    @Override
+    public List<ByteBufferPool.ReusableByteBuffer> readToBufferList(ByteBufferPool pool, int size) throws TTransportException
+    {
+        throw new TTransportException("This is a write-only transport");
     }
 }

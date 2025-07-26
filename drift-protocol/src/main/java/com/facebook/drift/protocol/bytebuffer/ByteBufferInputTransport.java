@@ -20,12 +20,13 @@ import com.facebook.drift.protocol.TTransport;
 import com.facebook.drift.protocol.TTransportException;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.List;
 
 import static java.lang.String.format;
 
 public class ByteBufferInputTransport
-        implements TTransport
+        implements ByteBufferCapableTransport
 {
     private final ByteBufferInputStream inputStream;
 
@@ -61,5 +62,41 @@ public class ByteBufferInputTransport
             throws TTransportException
     {
         throw new TTransportException("This is a read-only transport");
+    }
+
+    // ByteBufferCapableTransport interface methods for zero-copy operations
+
+    @Override
+    public void write(ByteBuffer buffer) throws TTransportException
+    {
+        throw new TTransportException("This is a read-only transport");
+    }
+
+    @Override
+    public void write(List<ByteBufferPool.ReusableByteBuffer> bufferList) throws TTransportException
+    {
+        throw new TTransportException("This is a read-only transport");
+    }
+
+    @Override
+    public int read(ByteBuffer destination) throws TTransportException
+    {
+        try {
+            return inputStream.readToByteBuffer(destination);
+        }
+        catch (IOException e) {
+            throw new TTransportException("Failed to read into ByteBuffer", e);
+        }
+    }
+
+    @Override
+    public List<ByteBufferPool.ReusableByteBuffer> readToBufferList(ByteBufferPool pool, int size) throws TTransportException
+    {
+        try {
+            return inputStream.readToBufferList(pool, size);
+        }
+        catch (IOException e) {
+            throw new TTransportException("Failed to read to buffer list", e);
+        }
     }
 }
