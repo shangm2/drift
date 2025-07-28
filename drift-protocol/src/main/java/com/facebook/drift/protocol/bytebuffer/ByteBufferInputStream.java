@@ -52,11 +52,7 @@ public class ByteBufferInputStream
             }
         }
         
-        if (currentBuffer.isDirect()) {
-            return DirectBufferUtil.getByte(currentBuffer.getByteBuffer()) & 0xFF;
-        } else {
-            return currentBuffer.get() & 0xFF;
-        }
+        return currentBuffer.get() & 0xFF;
     }
 
     @Override
@@ -81,11 +77,7 @@ public class ByteBufferInputStream
 
             int bytesToRead = Math.min(bytesRemaining, currentBuffer.getBufferRemaining());
             
-            if (currentBuffer.isDirect()) {
-                DirectBufferUtil.getBytes(currentBuffer.getByteBuffer(), b, destOffset, bytesToRead);
-            } else {
-                currentBuffer.get(b, destOffset, bytesToRead);
-            }
+            currentBuffer.get(b, destOffset, bytesToRead);
 
             totalBytesRead += bytesToRead;
             bytesRemaining -= bytesToRead;

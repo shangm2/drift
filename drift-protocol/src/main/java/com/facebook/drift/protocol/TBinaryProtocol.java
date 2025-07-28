@@ -17,6 +17,7 @@ package com.facebook.drift.protocol;
 
 import com.facebook.drift.TException;
 import com.facebook.drift.buffer.ByteBufferPool;
+import com.facebook.drift.protocol.bytebuffer.ByteBufferCapableTransport;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -44,6 +45,7 @@ public class TBinaryProtocol
     protected static final int VERSION_1 = 0x80010000;
 
     private final TTransport transport;
+    private final ByteBufferCapableTransport byteBufferTransport;
 
     /**
      * Constructor
@@ -51,6 +53,8 @@ public class TBinaryProtocol
     public TBinaryProtocol(TTransport transport)
     {
         this.transport = requireNonNull(transport, "transport is null");
+        this.byteBufferTransport = (transport instanceof ByteBufferCapableTransport) ? 
+            (ByteBufferCapableTransport) transport : null;
     }
 
     @Override
@@ -210,7 +214,15 @@ public class TBinaryProtocol
     {
         int length = value.limit() - value.position();
         writeI32(length);
-        transport.write(value.array(), value.position() + value.arrayOffset(), length);
+        
+        if (byteBufferTransport != null) {
+            // ZERO COPY path - write ByteBuffer directly to transport
+            byteBufferTransport.write(value);
+        } else {
+            // Fallback for non-enhanced transports - this will fail for direct buffers
+            // but is preserved for backward compatibility with heap buffers
+            transport.write(value.array(), value.position() + value.arrayOffset(), length);
+        }
     }
 
     @Override
@@ -223,8 +235,16 @@ public class TBinaryProtocol
         }
 
         writeI32(size);
-        for (ByteBufferPool.ReusableByteBuffer reusableByteBuffer : byteBufferList) {
-            transport.write(reusableByteBuffer.getArray(), reusableByteBuffer.getArrayOffset() + reusableByteBuffer.getPosition(), reusableByteBuffer.getBufferRemaining());
+        
+        if (byteBufferTransport != null) {
+            // ZERO COPY path - write buffer list directly to transport
+            byteBufferTransport.write(byteBufferList);
+        } else {
+            // Fallback for non-enhanced transports - this will fail for direct buffers
+            // but is preserved for backward compatibility with heap buffers
+            for (ByteBufferPool.ReusableByteBuffer reusableByteBuffer : byteBufferList) {
+                transport.write(reusableByteBuffer.getArray(), reusableByteBuffer.getArrayOffset() + reusableByteBuffer.getPosition(), reusableByteBuffer.getBufferRemaining());
+            }
         }
     }
 
@@ -407,9 +427,24 @@ public class TBinaryProtocol
             throws TException
     {
         int size = checkSize(readI32());
-        byte[] buf = new byte[size];
-        transport.read(buf, 0, size);
-        return ByteBuffer.wrap(buf);
+        
+        if (byteBufferTransport != null) {
+            // ZERO COPY path - allocate target buffer and read directly into it
+            ByteBuffer result = ByteBuffer.allocate(size);
+            int bytesRead = byteBufferTransport.read(result);
+            
+            if (bytesRead != size) {
+                throw new TTransportException("Failed to read expected bytes: expected " + size + ", got " + bytesRead);
+            }
+            
+            result.flip();
+            return result;
+        } else {
+            // Fallback for non-enhanced transports
+            byte[] buf = new byte[size];
+            transport.read(buf, 0, size);
+            return ByteBuffer.wrap(buf);
+        }
     }
 
     @Override
@@ -431,23 +466,29 @@ public class TBinaryProtocol
             return Collections.emptyList();
         }
 
-        List<ByteBufferPool.ReusableByteBuffer> byteBufferList = new ArrayList<>();
+        if (byteBufferTransport != null) {
+            // ZERO COPY path - read directly into buffer list!
+            return byteBufferTransport.readToBufferList(pool, size);
+        } else {
+            // Fallback for non-enhanced transports - this will fail for direct buffers
+            // but is preserved for backward compatibility with heap buffers
+            List<ByteBufferPool.ReusableByteBuffer> byteBufferList = new ArrayList<>();
+            int remaining = size;
 
-        int remaining = size;
+            while (remaining > 0) {
+                ByteBufferPool.ReusableByteBuffer byteBuffer = pool.acquire();
+                byteBufferList.add(byteBuffer);
+                int bytesToRead = Math.min(remaining, byteBuffer.getBufferRemaining());
 
-        while (remaining > 0) {
-            ByteBufferPool.ReusableByteBuffer byteBuffer = pool.acquire();
-            byteBufferList.add(byteBuffer);
-            int bytesToRead = Math.min(remaining, byteBuffer.getBufferRemaining());
+                transport.read(byteBuffer.getArray(), byteBuffer.getArrayOffset(), bytesToRead);
+                byteBuffer.setPosition(bytesToRead);
+                byteBuffer.setLimit(bytesToRead);
+                byteBuffer.flip();
 
-            transport.read(byteBuffer.getArray(), byteBuffer.getArrayOffset(), bytesToRead);
-            byteBuffer.setPosition(bytesToRead);
-            byteBuffer.setLimit(bytesToRead);
-            byteBuffer.flip();
-
-            remaining -= bytesToRead;
+                remaining -= bytesToRead;
+            }
+            return byteBufferList;
         }
-        return byteBufferList;
     }
 
     private static int checkSize(int length)

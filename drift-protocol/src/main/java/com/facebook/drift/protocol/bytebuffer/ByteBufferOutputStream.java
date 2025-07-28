@@ -47,11 +47,7 @@ public class ByteBufferOutputStream
         if (currentBuffer.hasNoRemaining()) {
             addNewBuffer();
         }
-        if (currentBuffer.isDirect()) {
-            DirectBufferUtil.putByte(currentBuffer.getByteBuffer(), (byte) b);
-        } else {
-            currentBuffer.put((byte) b);
-        }
+        currentBuffer.put((byte) b);
     }
 
     @Override
@@ -68,11 +64,7 @@ public class ByteBufferOutputStream
 
             int bytesToWrite = Math.min(remaining, currentBuffer.getBufferRemaining());
             
-            if (currentBuffer.isDirect()) {
-                DirectBufferUtil.putBytes(currentBuffer.getByteBuffer(), b, offset, bytesToWrite);
-            } else {
-                currentBuffer.put(b, offset, bytesToWrite);
-            }
+            currentBuffer.put(b, offset, bytesToWrite);
 
             offset += bytesToWrite;
             remaining -= bytesToWrite;
